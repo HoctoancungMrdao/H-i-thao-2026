@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all unknown paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Whitelist check: only designated organizer emails have permission to edit
+    function isAuthorizedOrganizer() {
+      return isSignedIn() &&
+        request.auth.token.email != null && (
+          request.auth.token.email == 'daovankhuonbtvn@gmail.com' ||
+          request.auth.token.email == 'nguyentoan255715@gmail.com' ||
+          request.auth.token.email == 'daovankhuon_thpt_tts@bentre.edu.vn' ||
+          request.auth.token.email == 'thao0311@gmail.com'
+        );
+    }
+
+    // Tournaments collection: Public read for everyone (students, teachers, spectators)
+    // Write ONLY allowed for the 3 authorized organizer emails
+    match /tournaments/{tournamentId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAuthorizedOrganizer() && isValidId(tournamentId);
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAuthorizedOrganizer());
+      allow list: if isAuthorizedOrganizer();
+      allow create, update: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow delete: if isAuthorizedOrganizer();
+    }
+  }
+}

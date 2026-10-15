@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Tournament store containing all divisions, matches, and team rankings",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the tournament"
+        },
+        "divisions": {
+          "type": "object",
+          "description": "Divisions data including matches and standings"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Email or UID of the authorized user who performed the update"
+        }
+      },
+      "required": ["id", "divisions"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account info and organizer role",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase user ID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["organizer", "viewer"],
+          "description": "Role determining edit permissions. Only whitelisted BTC emails are granted organizer role."
+        }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/tournaments/{tournamentId}": {
+      "schema": "Tournament",
+      "description": "Tournament data synced in real-time. Public read, write restricted to authorized organizer emails: daovankhuonbtvn@gmail.com, nguyentoan255715@gmail.com, daovankhuon_thpt_tts@bentre.edu.vn, thao0311@gmail.com."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile with role information"
+    }
+  }
+}

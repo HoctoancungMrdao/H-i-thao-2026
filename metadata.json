@@ -1,0 +1,6 @@
+{
+  "name": "Giải Bóng Đá Học Đường - Lịch & Kết Quả",
+  "description": "Bảng thi đấu, lịch thi đấu và cập nhật kết quả 4 nội dung: BĐ Nam, BĐ Nữ, BĐ Khối 8-9, BĐ Khối 6-7 tối ưu cho điện thoại.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
