@@ -168,14 +168,6 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
                                   <span className="font-extrabold text-slate-900 truncate">
                                     {team.teamName}
                                   </span>
-                                  <span className="text-[10px] text-slate-400 font-semibold bg-slate-100 px-1 rounded">
-                                    {team.teamCode}
-                                  </span>
-                                  {qualifies && (
-                                    <span className="hidden sm:inline-flex text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
-                                      Vào Tứ Kết
-                                    </span>
-                                  )}
                                 </div>
                               </td>
 
@@ -228,7 +220,7 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div>
                                       <p className="font-semibold text-slate-800">
-                                        Chi tiết {team.teamName} ({team.teamCode}):
+                                        Chi tiết {team.teamName}:
                                       </p>
                                       <p className="text-[11px] text-slate-500">
                                         Ghi {team.gf} bàn, thủng lưới {team.ga} bàn • Tỉ số đối đầu ưu tiên khi bằng điểm.
@@ -258,22 +250,18 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
                   <table className="w-full text-center text-xs border border-slate-200">
                     <thead>
                       <tr className="bg-slate-100 text-slate-700 font-bold">
-                        <th className="p-2 border border-slate-200 bg-slate-200/80">Mã</th>
-                        <th className="p-2 border border-slate-200 text-left">Đội</th>
-                        {codes.map(c => (
-                          <th key={c} className="p-2 border border-slate-200 font-extrabold text-emerald-800">
-                            {c}
+                        <th className="p-2 border border-slate-200 text-left">Đội bóng</th>
+                        {codes.map((c) => (
+                          <th key={c} className="p-2 border border-slate-200 font-extrabold text-emerald-800 text-[11px] max-w-[85px] truncate">
+                            {teams[c] || c}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {codes.map(rCode => (
+                      {codes.map((rCode) => (
                         <tr key={rCode} className="hover:bg-slate-50">
-                          <td className="p-2 border border-slate-200 font-bold bg-slate-50 text-emerald-800">
-                            {rCode}
-                          </td>
-                          <td className="p-2 border border-slate-200 font-bold text-left truncate max-w-[120px]">
+                          <td className="p-2 border border-slate-200 font-bold text-left truncate max-w-[130px] bg-slate-50 text-slate-900">
                             {teams[rCode]}
                           </td>
                           {codes.map(cCode => {

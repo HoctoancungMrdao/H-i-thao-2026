@@ -50,15 +50,17 @@ export const MatchCard: React.FC<MatchCardProps> = ({
       {/* Top Header Bar */}
       <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-          <span className="font-extrabold text-slate-800 bg-slate-200/80 px-2 py-0.5 rounded-md text-[11px]">
+          <span className="font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md text-[11px] shadow-2xs">
+            Trận {match.matchNumber}
+          </span>
+          <span className="font-extrabold text-slate-700 bg-slate-200/80 px-2 py-0.5 rounded-md text-[11px]">
             {match.roundName}
           </span>
-          {match.pairCode && (
+          {match.pairCode && !/^[A-D]\d-[A-D]\d$/i.test(match.pairCode) && (
             <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
               {match.pairCode}
             </span>
           )}
-          <span className="text-slate-400 text-[10px] hidden sm:inline">Trận #{match.matchNumber}</span>
         </div>
 
         {/* Status Badge */}

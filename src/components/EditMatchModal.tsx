@@ -65,6 +65,10 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
     'Sân cỏ nhân tạo Thanh Nghĩa (Sân 2)',
     'Sân cỏ nhân tạo Thanh Nghĩa (Sân 3)',
     'Sân cỏ nhân tạo Thanh Nghĩa (Sân 4)',
+    'Sân cỏ nhân tạo Khánh Ngọc (Sân 1)',
+    'Sân cỏ nhân tạo Khánh Ngọc (Sân 2)',
+    'Sân cỏ nhân tạo Mũi Tàu (Sân 1)',
+    'Sân cỏ nhân tạo Mũi Tàu (Sân 2)',
   ];
 
   return (

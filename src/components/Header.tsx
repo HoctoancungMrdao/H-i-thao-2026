@@ -55,12 +55,12 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-extrabold tracking-tight leading-tight truncate">
-                GIẢI BÓNG ĐÁ HỌC ĐƯỜNG
+                ĐẠI HỘI TDTT 2026-2027
               </h1>
               <p className="text-[11px] sm:text-xs text-emerald-100/90 truncate flex items-center gap-1.5 font-medium">
-                <span>4 Nội Dung Thi Đấu</span>
+                <span className="font-bold">THCS-THPT TRẦN TRƯỜNG SINH</span>
                 <span>•</span>
-                <span className="truncate">Sân cỏ nhân tạo Thanh Nghĩa</span>
+                <span className="truncate">Sân Thanh Nghĩa</span>
               </p>
             </div>
           </div>
@@ -81,15 +81,15 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* CSV Import Button (Only for Authorized BTC) */}
+            {/* CSV / Sheet Import Button (Only for Authorized BTC) */}
             {isAuthorized && isBtcMode && (
               <button
                 onClick={onOpenCsvImport}
-                title="Cập nhật từ bảng tính / CSV"
+                title="Đồng bộ từ Google Sheets hoặc tải tệp CSV"
                 className="p-2 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-100 border border-emerald-400/30 active:scale-95 transition-all text-xs font-semibold flex items-center gap-1"
               >
                 <Upload className="w-4 h-4 text-amber-300" />
-                <span className="hidden sm:inline">Nhập CSV</span>
+                <span className="hidden sm:inline">Đồng Bộ Sheet</span>
               </button>
             )}
 

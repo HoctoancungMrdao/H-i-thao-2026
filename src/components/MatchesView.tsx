@@ -22,6 +22,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   const [selectedRound, setSelectedRound] = useState<'all' | MatchRound>('all');
   const [selectedGroup, setSelectedGroup] = useState<'all' | 'A' | 'B' | 'C' | 'D'>('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'finished' | 'scheduled'>('all');
+  const [viewGrouping, setViewGrouping] = useState<'order' | 'stage'>('order');
 
   // Check which rounds exist in this division
   const availableRounds = useMemo(() => {
@@ -71,8 +72,18 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
     });
   }, [matches, searchQuery, selectedRound, selectedGroup, selectedStatus]);
 
-  // Group filtered matches by roundName/stage for clean layout
+  // Group filtered matches by roundName/stage or sequential order
   const groupedSections = useMemo(() => {
+    if (viewGrouping === 'order' && selectedRound === 'all' && selectedGroup === 'all') {
+      const sorted = [...filteredMatches].sort((a, b) => a.matchNumber - b.matchNumber);
+      return [
+        {
+          title: `SƠ ĐỒ THỨ TỰ CÁC TRẬN ĐẤU (TRẬN 1 - ${sorted.length})`,
+          matches: sorted,
+        },
+      ];
+    }
+
     const sections: { title: string; matches: Match[] }[] = [];
     const map = new Map<string, Match[]>();
 
@@ -94,12 +105,16 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
       map.get(title)!.push(m);
     });
 
+    // Sort each section's matches strictly by matchNumber
     map.forEach((matchList, title) => {
-      sections.push({ title, matches: matchList });
+      sections.push({
+        title,
+        matches: [...matchList].sort((a, b) => a.matchNumber - b.matchNumber)
+      });
     });
 
     return sections;
-  }, [filteredMatches]);
+  }, [filteredMatches, viewGrouping, selectedRound, selectedGroup]);
 
   return (
     <div className="space-y-3.5">
@@ -155,7 +170,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo tên đội hoặc mã (vd: B2, 12A1, A1-A2)..."
+            placeholder="Tìm theo tên đội bóng, số trận (vd: 12A1, Trận 1)..."
             className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
           />
           {searchQuery && (
@@ -166,6 +181,33 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
               ✕
             </button>
           )}
+        </div>
+
+        {/* View Switcher: Thứ tự trận đấu vs Phân bảng */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <span className="text-[11px] font-bold text-slate-500">Chế độ xem:</span>
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
+            <button
+              onClick={() => setViewGrouping('order')}
+              className={`px-2.5 py-1 rounded-lg transition-all ${
+                viewGrouping === 'order'
+                  ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Thứ tự trận đấu (1, 2, 3...)
+            </button>
+            <button
+              onClick={() => setViewGrouping('stage')}
+              className={`px-2.5 py-1 rounded-lg transition-all ${
+                viewGrouping === 'stage'
+                  ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Phân theo bảng & vòng
+            </button>
+          </div>
         </div>
 
         {/* Round Filter Chips */}

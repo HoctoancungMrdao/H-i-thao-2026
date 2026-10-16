@@ -17,6 +17,8 @@ export const BracketView: React.FC<BracketViewProps> = ({
   const semis = matches.filter(m => m.round === 'semi');
   const finals = matches.filter(m => m.round === 'final');
 
+  const hasQuarters = quarters.length > 0;
+
   const renderBracketMatch = (m: Match) => {
     const isFinished = m.status === 'finished' && m.homeScore !== null && m.awayScore !== null;
     const homeWon = isFinished && (
@@ -36,60 +38,60 @@ export const BracketView: React.FC<BracketViewProps> = ({
         onClick={() => {
           if (isBtcMode) onEditScore(m);
         }}
-        className={`bg-white rounded-xl border p-2.5 shadow-xs transition-all ${
-          isBtcMode ? 'cursor-pointer hover:border-amber-400 hover:shadow-md' : ''
+        className={`bg-white rounded-2xl border p-3.5 sm:p-4 shadow-xs transition-all ${
+          isBtcMode ? 'cursor-pointer hover:border-amber-400 hover:shadow-md ring-1 hover:ring-amber-300' : ''
         } ${isFinished ? 'border-slate-200' : 'border-slate-300/80 bg-slate-50/50'}`}
       >
-        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5 pb-1 border-b border-slate-100">
-          <span className="font-bold text-slate-700">{m.roundName}</span>
-          <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+        <div className="flex items-center justify-between text-xs text-slate-500 mb-2 pb-1.5 border-b border-slate-100">
+          <span className="font-extrabold text-slate-800">{m.roundName}</span>
+          <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 text-xs">
             {m.pairCode || `Trận #${m.matchNumber}`}
           </span>
         </div>
 
         {/* Home Team */}
-        <div className={`flex items-center justify-between py-1 text-xs ${homeWon ? 'font-extrabold text-emerald-800' : 'text-slate-700'}`}>
-          <div className="flex items-center gap-1 min-w-0 pr-2">
-            {homeWon && <Award className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+        <div className={`flex items-center justify-between py-1.5 text-sm sm:text-base ${homeWon ? 'font-black text-emerald-800' : 'font-extrabold text-slate-800'}`}>
+          <div className="flex items-center gap-1.5 min-w-0 pr-2">
+            {homeWon && <Award className="w-4 h-4 text-amber-500 flex-shrink-0" />}
             <span className="truncate">{m.homeTeam}</span>
           </div>
           <div className="flex items-center gap-1 font-black flex-shrink-0">
             {isFinished ? (
-              <span className={`px-1.5 py-0.5 rounded ${homeWon ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`px-2 py-0.5 rounded-lg text-sm sm:text-base ${homeWon ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
                 {m.homeScore}
                 {m.hasPenalty && m.homePen !== undefined && (
-                  <span className="text-[9px] font-normal opacity-90">({m.homePen})</span>
+                  <span className="text-xs font-normal opacity-90 ml-0.5">({m.homePen})</span>
                 )}
               </span>
             ) : (
-              <span className="text-slate-300">-</span>
+              <span className="text-slate-300 font-bold">-</span>
             )}
           </div>
         </div>
 
         {/* Away Team */}
-        <div className={`flex items-center justify-between py-1 text-xs border-t border-slate-100 ${awayWon ? 'font-extrabold text-emerald-800' : 'text-slate-700'}`}>
-          <div className="flex items-center gap-1 min-w-0 pr-2">
-            {awayWon && <Award className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+        <div className={`flex items-center justify-between py-1.5 text-sm sm:text-base border-t border-slate-100 ${awayWon ? 'font-black text-emerald-800' : 'font-extrabold text-slate-800'}`}>
+          <div className="flex items-center gap-1.5 min-w-0 pr-2">
+            {awayWon && <Award className="w-4 h-4 text-amber-500 flex-shrink-0" />}
             <span className="truncate">{m.awayTeam}</span>
           </div>
           <div className="flex items-center gap-1 font-black flex-shrink-0">
             {isFinished ? (
-              <span className={`px-1.5 py-0.5 rounded ${awayWon ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`px-2 py-0.5 rounded-lg text-sm sm:text-base ${awayWon ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
                 {m.awayScore}
                 {m.hasPenalty && m.awayPen !== undefined && (
-                  <span className="text-[9px] font-normal opacity-90">({m.awayPen})</span>
+                  <span className="text-xs font-normal opacity-90 ml-0.5">({m.awayPen})</span>
                 )}
               </span>
             ) : (
-              <span className="text-slate-300">-</span>
+              <span className="text-slate-300 font-bold">-</span>
             )}
           </div>
         </div>
 
         {isBtcMode && (
-          <div className="mt-1.5 pt-1 text-center border-t border-dashed border-slate-200">
-            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+          <div className="mt-2 pt-1.5 text-center border-t border-dashed border-slate-200">
+            <span className="text-xs font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md">
               ✏️ Bấm để nhập tỉ số
             </span>
           </div>
@@ -101,78 +103,105 @@ export const BracketView: React.FC<BracketViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Banner */}
-      <div className="bg-gradient-to-r from-emerald-800 to-teal-700 rounded-2xl p-3.5 text-white shadow-sm flex items-center justify-between">
+      <div className="bg-gradient-to-r from-emerald-800 to-teal-700 rounded-2xl p-4 text-white shadow-sm flex items-center justify-between">
         <div>
-          <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-1.5">
-            <Trophy className="w-4 h-4 text-amber-300" /> Sơ đồ Nhánh Đấu Trực Tiếp
+          <h3 className="font-black text-base sm:text-lg flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-300" /> Sơ đồ Nhánh Đấu Trực Tiếp
           </h3>
-          <p className="text-xs text-emerald-100 mt-0.5">
+          <p className="text-xs sm:text-sm text-emerald-100 mt-0.5">
             Vòng đấu loại knock-out hướng tới ngôi vô địch
           </p>
         </div>
-        <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-lg backdrop-blur-xs">
+        <span className="text-xs sm:text-sm font-extrabold bg-white/20 px-3 py-1 rounded-xl backdrop-blur-xs">
           Knockout
         </span>
       </div>
 
       {/* Responsive Horizontal Scroll Bracket Container */}
-      <div className="bg-slate-100/90 rounded-2xl p-3 sm:p-4 border border-slate-200 overflow-x-auto">
-        <div className="min-w-[680px] grid grid-cols-3 gap-6 items-center">
-          {/* Column 1: Tứ kết (hoặc Bán kết nếu không có tứ kết) */}
-          <div className="space-y-4">
-            <div className="text-center font-extrabold text-xs text-slate-600 uppercase tracking-wider pb-1 border-b border-slate-300">
-              {quarters.length > 0 ? 'VÒNG TỨ KẾT' : 'VÒNG BÁN KẾT'}
-            </div>
-            {quarters.length > 0 ? (
+      <div className="bg-slate-100/90 rounded-2xl p-3 sm:p-5 border border-slate-200 overflow-x-auto">
+        {hasQuarters ? (
+          /* 3-Column Layout: Tứ kết -> Bán kết -> Chung kết (BĐ Nam) */
+          <div className="min-w-[720px] grid grid-cols-3 gap-6 items-center">
+            {/* Column 1: Tứ kết */}
+            <div className="space-y-4">
+              <div className="text-center font-black text-xs sm:text-sm text-slate-700 uppercase tracking-wider pb-1.5 border-b border-slate-300">
+                VÒNG TỨ KẾT
+              </div>
               <div className="space-y-3">
                 {quarters.map(m => renderBracketMatch(m))}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {semis.map(m => renderBracketMatch(m))}
-              </div>
-            )}
-          </div>
-
-          {/* Column 2: Bán kết (hoặc Chung kết) */}
-          <div className="space-y-4">
-            <div className="text-center font-extrabold text-xs text-slate-600 uppercase tracking-wider pb-1 border-b border-slate-300">
-              {quarters.length > 0 ? 'VÒNG BÁN KẾT' : 'TRẬN CHUNG KẾT'}
             </div>
-            {quarters.length > 0 ? (
+
+            {/* Column 2: Bán kết */}
+            <div className="space-y-4">
+              <div className="text-center font-black text-xs sm:text-sm text-slate-700 uppercase tracking-wider pb-1.5 border-b border-slate-300">
+                VÒNG BÁN KẾT
+              </div>
               <div className="space-y-8 my-auto">
                 {semis.map(m => renderBracketMatch(m))}
               </div>
-            ) : (
-              <div className="space-y-3 my-auto">
-                {finals.map(m => renderBracketMatch(m))}
-              </div>
-            )}
-          </div>
+            </div>
 
-          {/* Column 3: Chung kết & Cup */}
-          <div className="space-y-4">
-            <div className="text-center font-extrabold text-xs text-amber-800 uppercase tracking-wider pb-1 border-b border-amber-300 flex items-center justify-center gap-1">
-              <Trophy className="w-3.5 h-3.5 text-amber-500" /> TRẬN CHUNG KẾT
-            </div>
-            <div className="my-auto space-y-3">
-              {finals.map(m => renderBracketMatch(m))}
-              
-              {/* Champion Trophy card */}
-              {finals.some(f => f.status === 'finished' && f.winnerTeam) && (
-                <div className="bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-500 rounded-xl p-3 text-center text-slate-950 font-black shadow-md border border-amber-400 animate-in fade-in">
-                  <div className="text-2xl mb-1">🏆</div>
-                  <div className="text-[10px] tracking-wider uppercase font-extrabold text-amber-950">
-                    ĐỘI VÔ ĐỊCH
+            {/* Column 3: Chung kết & Cup */}
+            <div className="space-y-4">
+              <div className="text-center font-black text-xs sm:text-sm text-amber-800 uppercase tracking-wider pb-1.5 border-b border-amber-300 flex items-center justify-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-500" /> TRẬN CHUNG KẾT
+              </div>
+              <div className="my-auto space-y-3">
+                {finals.map(m => renderBracketMatch(m))}
+
+                {/* Champion Trophy card */}
+                {finals.some(f => f.status === 'finished' && f.winnerTeam) && (
+                  <div className="bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-500 rounded-2xl p-4 text-center text-slate-950 font-black shadow-md border border-amber-400 animate-in fade-in">
+                    <div className="text-3xl mb-1">🏆</div>
+                    <div className="text-xs tracking-wider uppercase font-black text-amber-950">
+                      ĐỘI VÔ ĐỊCH
+                    </div>
+                    <div className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
+                      {finals.find(f => f.status === 'finished')?.winnerTeam}
+                    </div>
                   </div>
-                  <div className="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5">
-                    {finals.find(f => f.status === 'finished')?.winnerTeam}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          /* 2-Column Layout: Bán kết -> Chung kết (BĐ Nữ, Khối 8-9, Khối 6-7) - NO DUPLICATE FINAL COLUMN */
+          <div className="min-w-[520px] max-w-2xl mx-auto grid grid-cols-2 gap-6 items-center">
+            {/* Column 1: Bán kết */}
+            <div className="space-y-4">
+              <div className="text-center font-black text-xs sm:text-sm text-slate-700 uppercase tracking-wider pb-1.5 border-b border-slate-300">
+                VÒNG BÁN KẾT
+              </div>
+              <div className="space-y-4">
+                {semis.map(m => renderBracketMatch(m))}
+              </div>
+            </div>
+
+            {/* Column 2: Chung kết Duy Nhất */}
+            <div className="space-y-4">
+              <div className="text-center font-black text-xs sm:text-sm text-amber-800 uppercase tracking-wider pb-1.5 border-b border-amber-300 flex items-center justify-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-500" /> TRẬN CHUNG KẾT
+              </div>
+              <div className="my-auto space-y-4">
+                {finals.map(m => renderBracketMatch(m))}
+
+                {/* Champion Trophy card */}
+                {finals.some(f => f.status === 'finished' && f.winnerTeam) && (
+                  <div className="bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-500 rounded-2xl p-4 text-center text-slate-950 font-black shadow-md border border-amber-400 animate-in fade-in">
+                    <div className="text-3xl mb-1">🏆</div>
+                    <div className="text-xs tracking-wider uppercase font-black text-amber-950">
+                      ĐỘI VÔ ĐỊCH
+                    </div>
+                    <div className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
+                      {finals.find(f => f.status === 'finished')?.winnerTeam}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

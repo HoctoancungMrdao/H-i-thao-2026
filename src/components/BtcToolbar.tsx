@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, X, FileDown, PlusCircle } from 'lucide-react';
+import { ShieldCheck, X, FileDown, Link2, Clock } from 'lucide-react';
 
 interface BtcToolbarProps {
   isVisible: boolean;
@@ -7,6 +7,7 @@ interface BtcToolbarProps {
   onExport: () => void;
   onOpenCsvImport: () => void;
   onOpenScheduleManager: () => void;
+  hasSavedSheetUrl?: boolean;
 }
 
 export const BtcToolbar: React.FC<BtcToolbarProps> = ({
@@ -15,6 +16,7 @@ export const BtcToolbar: React.FC<BtcToolbarProps> = ({
   onExport,
   onOpenCsvImport,
   onOpenScheduleManager,
+  hasSavedSheetUrl = false,
 }) => {
   if (!isVisible) return null;
 
@@ -27,10 +29,10 @@ export const BtcToolbar: React.FC<BtcToolbarProps> = ({
           </div>
           <div className="min-w-0">
             <p className="text-xs font-extrabold text-amber-300 truncate">
-              Chế độ Ban Tổ Chức đang bật
+              Chế độ Ban Tổ Chức
             </p>
             <p className="text-[11px] text-slate-300 truncate">
-              Chạm vào bất kỳ trận đấu nào để nhập kết quả hoặc sửa giờ/sân.
+              Nhấn vào trận đấu để nhập tỉ số, sửa giờ hoặc đồng bộ Sheet.
             </p>
           </div>
         </div>
@@ -39,16 +41,21 @@ export const BtcToolbar: React.FC<BtcToolbarProps> = ({
           <button
             onClick={onOpenScheduleManager}
             title="Sửa giờ toàn bộ các trận đấu"
-            className="p-1.5 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 transition-all"
+            className="p-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 transition-all"
           >
-            <span>Sửa Giờ</span>
+            <Clock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sửa Giờ</span>
           </button>
           <button
             onClick={onOpenCsvImport}
-            title="Dán hoặc tải tệp CSV mới"
-            className="p-1.5 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition-all"
+            title={hasSavedSheetUrl ? "Đồng bộ tỉ số & giờ từ link Google Sheets" : "Nhập dữ liệu từ Google Sheets hoặc CSV"}
+            className="p-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs relative"
           >
-            <span>Nhập CSV</span>
+            <Link2 className="w-3.5 h-3.5 text-amber-300" />
+            <span>Đồng bộ Sheet</span>
+            {hasSavedSheetUrl && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+            )}
           </button>
           <button
             onClick={onExport}

@@ -69,4 +69,6 @@ export interface DivisionData {
 
 export interface TournamentStore {
   divisions: Record<DivisionId, DivisionData>;
+  sheetSyncUrl?: string;
+  lastSheetSync?: string;
 }

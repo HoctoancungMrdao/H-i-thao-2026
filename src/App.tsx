@@ -30,7 +30,65 @@ import {
   MapPin,
 } from 'lucide-react';
 
-const STORAGE_KEY = 'bong_da_tournament_data_v10';
+const STORAGE_KEY = 'bong_da_tournament_data_v16';
+
+// Ensure all divisions conform to updated official draw, match numbering, venues, and pairings
+function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentStore {
+  if (!data || !data.divisions) return initialTournamentData;
+
+  const defaultDivisions = initialTournamentData.divisions;
+  const migratedDivisions = { ...data.divisions };
+
+  (Object.keys(defaultDivisions) as DivisionId[]).forEach((divId) => {
+    const defaultDiv = defaultDivisions[divId];
+    const currentDiv = migratedDivisions[divId];
+    if (!currentDiv || !currentDiv.matches) {
+      migratedDivisions[divId] = defaultDiv;
+      return;
+    }
+
+    // Map existing matches by ID to preserve scores and customized time/pitch
+    const existingMatchesMap = new Map<string, Match>();
+    currentDiv.matches.forEach((m) => existingMatchesMap.set(m.id, m));
+
+    // Reconstruct matches using the official sequential template
+    const updatedMatches = defaultDiv.matches.map((templateMatch) => {
+      const existing = existingMatchesMap.get(templateMatch.id);
+      if (!existing) return templateMatch;
+
+      return {
+        ...templateMatch,
+        // Preserve score and status if played
+        homeScore: existing.homeScore,
+        awayScore: existing.awayScore,
+        status: existing.status,
+        hasPenalty: existing.hasPenalty,
+        homePen: existing.homePen,
+        awayPen: existing.awayPen,
+        winnerTeam: existing.winnerTeam,
+        // Preserve user edited time if customized
+        time: existing.time || templateMatch.time,
+        // Update to new official venue/pitch from PDF
+        pitch: templateMatch.pitch,
+        note: existing.note,
+        // For knockout matches, enforce user-specified pairCode and placeholder teams
+        pairCode: templateMatch.pairCode,
+        homeTeam: (existing.status === 'finished' && existing.homeTeam) ? existing.homeTeam : templateMatch.homeTeam,
+        awayTeam: (existing.status === 'finished' && existing.awayTeam) ? existing.awayTeam : templateMatch.awayTeam,
+      };
+    });
+
+    migratedDivisions[divId] = {
+      ...currentDiv,
+      division: defaultDiv.division,
+      groups: defaultDiv.groups,
+      teams: defaultDiv.teams,
+      matches: updatedMatches,
+    };
+  });
+
+  return { divisions: migratedDivisions };
+}
 
 export default function App() {
   // Current authenticated user (null = public viewer with read-only access)
@@ -43,7 +101,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        return ensureUpToDateTournamentStructure(JSON.parse(saved));
       }
     } catch {
       // ignore
@@ -60,7 +118,7 @@ export default function App() {
   // Organizer edit mode (enabled when authorized BTC email logs in)
   const [isBtcMode, setIsBtcMode] = useState<boolean>(false);
 
-  // Check if current user email is in the authorized whitelist (3 emails)
+  // Check if current user email is in the authorized whitelist (4 emails)
   const isUserAuthorized = useMemo(() => {
     return currentUser ? isAuthorizedEmail(currentUser.email) : false;
   }, [currentUser]);
@@ -100,9 +158,10 @@ export default function App() {
     const unsubscribeDoc = subscribeTournament((remoteData) => {
       if (remoteData && remoteData.divisions) {
         isRemoteSyncRef.current = true;
-        setStore(remoteData);
+        const upgraded = ensureUpToDateTournamentStructure(remoteData);
+        setStore(upgraded);
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteData));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(upgraded));
         } catch {
           // ignore
         }

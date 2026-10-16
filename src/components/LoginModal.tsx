@@ -35,13 +35,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       }
       onClose();
     } catch (error: any) {
-      console.error(error);
-      if (error?.code === 'auth/popup-closed-by-user') {
-        setErrorMessage('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất.');
-      } else if (error?.code === 'auth/popup-blocked') {
-        setErrorMessage('Trình duyệt đã chặn cửa sổ đăng nhập. Vui lòng cho phép mở popup.');
+      console.error('Firebase Auth Error:', error);
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const code = error?.code || '';
+      const message = error?.message || '';
+
+      if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain') || (host && host.includes('vercel.app'))) {
+        setErrorMessage(
+          `Tên miền "${host}" chưa được thêm vào Danh sách tên miền được phép trong Firebase Authentication.\n` +
+          `👉 Cách xử lý: Mở Firebase Console -> Vào mục "Authentication" -> Chọn tab "Settings" -> Kéo xuống "Authorized domains" -> Bấm "Add domain" và nhập "${host}" (hoặc "vercel.app").`
+        );
+      } else if (code === 'auth/popup-closed-by-user') {
+        setErrorMessage('Cửa sổ đăng nhập Google đã bị đóng trước khi hoàn tất.');
+      } else if (code === 'auth/popup-blocked') {
+        setErrorMessage('Trình duyệt đã chặn cửa sổ đăng nhập. Vui lòng cho phép mở popup trên trình duyệt.');
       } else {
-        setErrorMessage('Không thể đăng nhập. Vui lòng thử lại hoặc kiểm tra kết nối.');
+        setErrorMessage(
+          `Không thể đăng nhập (${code || 'Lỗi kết nối'}). Nếu chạy trên Vercel, vui lòng kiểm tra việc thêm tên miền "${host}" vào Authorized Domains trong Firebase Console.`
+        );
       }
     } finally {
       setLoading(false);

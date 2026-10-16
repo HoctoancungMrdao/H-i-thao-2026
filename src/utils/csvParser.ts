@@ -16,8 +16,9 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
   let title = 'MÔN BÓNG ĐÁ';
   let venue = 'Sân cỏ nhân tạo Thanh Nghĩa';
 
-  // Helper to split CSV line safely handling quotes
+  // Helper to split CSV line safely handling quotes, supporting comma, tab, semicolon
   const parseLine = (line: string): string[] => {
+    const delimiter = line.includes('\t') ? '\t' : (line.includes(',') ? ',' : (line.includes(';') ? ';' : ','));
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -25,7 +26,7 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
       const char = line[i];
       if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
+      } else if (char === delimiter && !inQuotes) {
         result.push(current.trim());
         current = '';
       } else {
@@ -38,9 +39,49 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
 
   const parsedLines = lines.map(parseLine);
 
+  // Helper to extract score and teams from columns
+  const extractScoreAndTeams = (cols: string[], initialHome: string, initialAway: string) => {
+    let homeScore: number | null = null;
+    let awayScore: number | null = null;
+    let homeTeam = initialHome;
+    let awayTeam = initialAway;
+
+    // Pattern 1: Separate columns [homeScore, '-', awayScore]
+    const dashIdx = cols.indexOf('-');
+    if (dashIdx > 1 && dashIdx < cols.length - 1) {
+      const s1 = parseInt(cols[dashIdx - 1], 10);
+      const s2 = parseInt(cols[dashIdx + 1], 10);
+      if (!isNaN(s1) && !isNaN(s2)) {
+        homeScore = s1;
+        awayScore = s2;
+      }
+      if (cols[dashIdx - 2] && !/^\d+$/.test(cols[dashIdx - 2])) homeTeam = cols[dashIdx - 2];
+      if (cols[dashIdx + 2] && !/^\d+$/.test(cols[dashIdx + 2])) awayTeam = cols[dashIdx + 2];
+    }
+
+    // Pattern 2: Single cell contains score e.g. "2 - 1", "2-1", "0 : 3"
+    if (homeScore === null) {
+      const scoreCellIdx = cols.findIndex(c => /^(\d+)\s*[-:]\s*(\d+)$/.test(c.trim()));
+      if (scoreCellIdx !== -1) {
+        const m = cols[scoreCellIdx].trim().match(/^(\d+)\s*[-:]\s*(\d+)$/);
+        if (m) {
+          homeScore = parseInt(m[1], 10);
+          awayScore = parseInt(m[2], 10);
+          if (scoreCellIdx > 0 && cols[scoreCellIdx - 1] && !/^\d+$/.test(cols[scoreCellIdx - 1])) {
+            homeTeam = cols[scoreCellIdx - 1];
+          }
+          if (scoreCellIdx < cols.length - 1 && cols[scoreCellIdx + 1] && !/^\d+$/.test(cols[scoreCellIdx + 1])) {
+            awayTeam = cols[scoreCellIdx + 1];
+          }
+        }
+      }
+    }
+
+    return { homeScore, awayScore, homeTeam, awayTeam };
+  };
+
   // Parse title & venue & rankings
   parsedLines.forEach(cols => {
-    // Title
     for (let c of cols) {
       if (c.toUpperCase().includes('MÔN BÓNG ĐÁ')) {
         title = c;
@@ -63,17 +104,15 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
     }
   });
 
-  // Parse Teams from BẢNG headers: e.g. [, Mã, BẢNG A, Đội A1, Đội A2, Đội A3, Đội A4...]
+  // Parse Teams from BẢNG headers
   parsedLines.forEach((cols, rIdx) => {
     const colJoined = cols.join(' ');
     ['BẢNG A', 'BẢNG B', 'BẢNG C', 'BẢNG D'].forEach(grpStr => {
       if (colJoined.includes(grpStr)) {
         const grpChar = grpStr.split(' ')[1] as 'A' | 'B' | 'C' | 'D';
-        // Check following 4 rows
         for (let i = 1; i <= 6; i++) {
           const row = parsedLines[rIdx + i];
           if (!row) break;
-          // Look for code e.g. A1, A2, B1
           const codeCandidate = row.find(c => new RegExp(`^${grpChar}\\d+$`).test(c));
           if (codeCandidate) {
             const codeIndex = row.indexOf(codeCandidate);
@@ -88,7 +127,6 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
   });
 
   // Parse Group Matches
-  // Example row: [,1,"7h30, thứ 7, 17/10",A1-A2,,Đội A1,0,-,1,Đội A2...]
   let inGroupMatches = false;
   let inKnockout = '';
 
@@ -117,38 +155,21 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
     }
 
     if (inGroupMatches) {
-      // Find row with match number e.g. [1, 2, ... 24]
       const matchNumCol = cols.find(c => /^\d+$/.test(c));
       if (matchNumCol) {
         const matchNumber = parseInt(matchNumCol, 10);
-        // Find pairCode e.g. A1-A2, B1-B2
         const pairCode = cols.find(c => /^[A-D]\d-[A-D]\d$/.test(c));
-        const timeCol = cols.find(c => c.toLowerCase().includes('thứ') || c.toLowerCase().includes('h') || c.includes('/10'));
-        
-        // Find score pattern: homeScore, "-", awayScore
-        const dashIdx = cols.indexOf('-');
-        let homeScore: number | null = null;
-        let awayScore: number | null = null;
-        let homeTeam = '';
-        let awayTeam = '';
-
-        if (dashIdx > 1 && dashIdx < cols.length - 1) {
-          const s1 = parseInt(cols[dashIdx - 1], 10);
-          const s2 = parseInt(cols[dashIdx + 1], 10);
-          if (!isNaN(s1) && !isNaN(s2)) {
-            homeScore = s1;
-            awayScore = s2;
-          }
-          homeTeam = cols[dashIdx - 2] || '';
-          awayTeam = cols[dashIdx + 2] || '';
-        }
+        const timeCol = cols.find(c => c.toLowerCase().includes('thứ') || c.toLowerCase().includes('h') || c.includes('/10') || c.includes('/2026'));
+        const pitchCol = cols.find(c => c.toLowerCase().includes('sân'));
 
         if (pairCode) {
           const grp = pairCode[0] as 'A' | 'B' | 'C' | 'D';
           const p1 = pairCode.split('-')[0];
           const p2 = pairCode.split('-')[1];
-          if (!homeTeam) homeTeam = teams[p1] || p1;
-          if (!awayTeam) awayTeam = teams[p2] || p2;
+          const defaultHome = teams[p1] || p1;
+          const defaultAway = teams[p2] || p2;
+
+          const { homeScore, awayScore, homeTeam, awayTeam } = extractScoreAndTeams(cols, defaultHome, defaultAway);
 
           let winner: string | undefined;
           if (homeScore !== null && awayScore !== null) {
@@ -169,7 +190,7 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
             homeScore,
             awayScore,
             time: timeCol || '7h30, Thứ 7, 17/10',
-            pitch: 'Sân cỏ nhân tạo Thanh Nghĩa',
+            pitch: pitchCol || venue || 'Sân cỏ nhân tạo Thanh Nghĩa',
             status: homeScore !== null ? 'finished' : 'scheduled',
             winnerTeam: winner,
           });
@@ -179,25 +200,11 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
 
     // Knockout Matches
     if (inKnockout) {
-      // Find TK1, TK2, BK1, BK2, CK
       const roundTag = cols.find(c => /^(TK[1-4]|BK[1-2]|CK)$/.test(c));
       if (roundTag) {
-        const dashIdx = cols.indexOf('-');
-        let homeScore: number | null = null;
-        let awayScore: number | null = null;
-        let homeTeam = '';
-        let awayTeam = '';
-
-        if (dashIdx > 1 && dashIdx < cols.length - 1) {
-          const s1 = parseInt(cols[dashIdx - 1], 10);
-          const s2 = parseInt(cols[dashIdx + 1], 10);
-          if (!isNaN(s1) && !isNaN(s2)) {
-            homeScore = s1;
-            awayScore = s2;
-          }
-          homeTeam = cols[dashIdx - 2] || '';
-          awayTeam = cols[dashIdx + 2] || '';
-        }
+        const timeCol = cols.find(c => c.toLowerCase().includes('thứ') || c.toLowerCase().includes('h') || c.includes('/10') || c.includes('/2026'));
+        const pitchCol = cols.find(c => c.toLowerCase().includes('sân'));
+        const { homeScore, awayScore, homeTeam, awayTeam } = extractScoreAndTeams(cols, 'Đội 1', 'Đội 2');
 
         // Check if next line is penalty shootout ( Luân lưu )
         let hasPenalty = false;
@@ -254,8 +261,8 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
           hasPenalty,
           homePen,
           awayPen,
-          time: '7h30, Thứ 7, 17/10',
-          pitch: 'Sân cỏ nhân tạo Thanh Nghĩa',
+          time: timeCol || '7h30, Thứ 7, 17/10',
+          pitch: pitchCol || venue || 'Sân cỏ nhân tạo Thanh Nghĩa',
           status: homeScore !== null ? 'finished' : 'scheduled',
           winnerTeam: winner,
           note: hasPenalty ? `Đá luân lưu: ${homePen} - ${awayPen}` : undefined,
@@ -279,3 +286,51 @@ export function parseTournamentCsv(csvText: string, divisionId: DivisionId = 'na
     rankings: (rankings.champion || rankings.runnerUp) ? rankings : undefined,
   };
 }
+
+/**
+ * Extracts a direct CSV download/export URL from a Google Sheets link.
+ */
+export function getGoogleSheetCsvUrl(url: string): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+
+  // If already an export link or published web CSV link
+  if (trimmed.includes('export?format=csv') || trimmed.includes('output=csv')) {
+    return trimmed;
+  }
+
+  // Handle standard Google Sheets links
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match) return null;
+
+  const sheetId = match[1];
+  const gidMatch = trimmed.match(/[#&?]gid=([0-9]+)/);
+  const gid = gidMatch ? gidMatch[1] : '0';
+
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+}
+
+/**
+ * Fetches CSV text directly from a Google Sheets URL.
+ */
+export async function fetchGoogleSheetCsv(url: string): Promise<string> {
+  const csvUrl = getGoogleSheetCsvUrl(url) || url.trim();
+  const res = await fetch(csvUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/csv,text/plain,*/*'
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Không thể kết nối đến Google Sheets (mã lỗi HTTP ${res.status}). Vui lòng đảm bảo bảng tính được mở quyền xem công khai.`);
+  }
+
+  const text = await res.text();
+  if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
+    throw new Error('Google Sheet đang yêu cầu tài khoản Google đăng nhập riêng tư. Bạn vui lòng: Vào Google Sheet > nhấn Chia sẻ (Share) > chuyển sang "Bất kỳ ai có đường liên kết đều có thể xem", hoặc chọn Tệp > Chia sẻ > Xuất bản lên web dạng CSV.');
+  }
+
+  return text;
+}
+

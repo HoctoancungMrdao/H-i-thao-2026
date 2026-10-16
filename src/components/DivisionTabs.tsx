@@ -33,20 +33,20 @@ export const DivisionTabs: React.FC<DivisionTabsProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onSelectDivision(tab.id)}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all relative text-center select-none ${
+                className={`flex flex-col items-center justify-center py-2.5 px-1 sm:py-3 sm:px-2 rounded-xl transition-all relative text-center select-none ${
                   isActive
-                    ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-700/20 scale-[1.02]'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold border border-slate-200/80'
+                    ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-700/25 scale-[1.02]'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold border border-slate-200/90'
                 }`}
               >
-                <div className="flex items-center gap-1 text-xs sm:text-sm">
-                  <span className="text-sm sm:text-base leading-none">{tab.icon}</span>
+                <div className="flex items-center gap-1 text-xs sm:text-base">
+                  <span className="text-base sm:text-lg leading-none">{tab.icon}</span>
                   <span className="truncate">{tab.label}</span>
                 </div>
                 {count && (
                   <span
-                    className={`text-[10px] mt-0.5 font-medium leading-none ${
-                      isActive ? 'text-emerald-100' : 'text-slate-400'
+                    className={`text-[11px] sm:text-xs mt-0.5 font-bold leading-none ${
+                      isActive ? 'text-emerald-100' : 'text-slate-500'
                     }`}
                   >
                     {count.finished}/{count.total} trận

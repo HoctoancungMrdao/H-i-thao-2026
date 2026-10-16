@@ -38,6 +38,10 @@ export const ScheduleManagerModal: React.FC<ScheduleManagerModalProps> = ({
     'Sân cỏ nhân tạo Thanh Nghĩa (Sân 2)',
     'Sân cỏ nhân tạo Thanh Nghĩa (Sân 3)',
     'Sân cỏ nhân tạo Thanh Nghĩa (Sân 4)',
+    'Sân cỏ nhân tạo Khánh Ngọc (Sân 1)',
+    'Sân cỏ nhân tạo Khánh Ngọc (Sân 2)',
+    'Sân cỏ nhân tạo Mũi Tàu (Sân 1)',
+    'Sân cỏ nhân tạo Mũi Tàu (Sân 2)',
   ];
 
   // Distinct groups & rounds available
@@ -92,7 +96,7 @@ export const ScheduleManagerModal: React.FC<ScheduleManagerModalProps> = ({
       }
 
       return true;
-    });
+    }).sort((a, b) => a.matchNumber - b.matchNumber);
   }, [matchList, activeFilter, searchQuery]);
 
   const handleUpdateTime = (id: string, newTime: string) => {

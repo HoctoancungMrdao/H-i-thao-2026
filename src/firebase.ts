@@ -119,7 +119,9 @@ export function subscribeTournament(
         const docData = snapshot.data();
         if (docData && docData.divisions) {
           onData({
-            divisions: docData.divisions
+            divisions: docData.divisions,
+            sheetSyncUrl: docData.sheetSyncUrl || undefined,
+            lastSheetSync: docData.lastSheetSync || undefined,
           } as TournamentStore);
         }
       }
@@ -141,6 +143,8 @@ export async function syncTournamentToFirestore(
     await setDoc(tournamentDocRef, {
       id: 'main_tournament',
       divisions: data.divisions,
+      sheetSyncUrl: data.sheetSyncUrl || null,
+      lastSheetSync: data.lastSheetSync || null,
       updatedAt: new Date().toISOString(),
       updatedBy: user?.email || user?.uid || 'authenticated_btc'
     }, { merge: true });
