@@ -4,8 +4,12 @@ import { Trophy, Shield, Eye, Settings, Share2, RotateCcw, Upload, Clock, LogIn,
 import { isAuthorizedEmail } from '../firebase';
 
 interface HeaderProps {
+  title?: string;
+  subtitle?: string;
   isBtcMode: boolean;
+  isAdminActive?: boolean;
   onToggleBtcMode: () => void;
+  onOpenAdmin?: () => void;
   onResetData: () => void;
   onOpenTeamManager: () => void;
   onOpenCsvImport: () => void;
@@ -15,8 +19,12 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  title,
+  subtitle,
   isBtcMode,
+  isAdminActive,
   onToggleBtcMode,
+  onOpenAdmin,
   onResetData,
   onOpenTeamManager,
   onOpenCsvImport,
@@ -31,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'Giải Bóng Đá - Lịch Thi Đấu & Kết Quả',
+          title: title || 'Giải Bóng Đá - Lịch Thi Đấu & Kết Quả',
           url: window.location.href,
         });
       } else {
@@ -55,12 +63,10 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-extrabold tracking-tight leading-tight truncate">
-                ĐẠI HỘI TDTT 2026-2027
+                {title || 'ĐẠI HỘI TDTT 2026-2027'}
               </h1>
               <p className="text-[11px] sm:text-xs text-emerald-100/90 truncate flex items-center gap-1.5 font-medium">
-                <span className="font-bold">THCS-THPT TRẦN TRƯỜNG SINH</span>
-                <span>•</span>
-                <span className="truncate">Sân Thanh Nghĩa</span>
+                <span className="font-bold">{subtitle || 'THCS-THPT TRẦN TRƯỜNG SINH'}</span>
               </p>
             </div>
           </div>
@@ -80,6 +86,22 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </button>
+
+            {/* Admin Page Quick Switcher */}
+            {isAuthorized && onOpenAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                title="Mở Trang Quản Trị Ban Tổ Chức"
+                className={`p-2 rounded-lg transition-all text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border cursor-pointer ${
+                  isAdminActive
+                    ? 'bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-300/60'
+                    : 'bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 border-amber-400/30'
+                }`}
+              >
+                <Settings className="w-4 h-4 text-amber-300" />
+                <span className="hidden sm:inline">Quản Trị</span>
+              </button>
+            )}
 
             {/* CSV / Sheet Import Button (Only for Authorized BTC) */}
             {isAuthorized && isBtcMode && (

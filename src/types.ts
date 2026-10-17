@@ -68,6 +68,8 @@ export interface DivisionData {
 }
 
 export interface TournamentStore {
+  title?: string; // e.g. "ĐẠI HỘI TDTT 2026-2027"
+  subtitle?: string; // e.g. "THCS-THPT TRẦN TRƯỜNG SINH"
   divisions: Record<DivisionId, DivisionData>;
   sheetSyncUrl?: string;
   lastSheetSync?: string;

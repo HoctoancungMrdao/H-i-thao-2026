@@ -1,6 +1,8 @@
 import { TournamentStore } from '../types';
 
 export const initialTournamentData: TournamentStore = {
+  title: 'ĐẠI HỘI TDTT 2026-2027',
+  subtitle: 'THCS-THPT TRẦN TRƯỜNG SINH',
   divisions: {
     // ==========================================
     // 1. MÔN BÓNG ĐÁ NAM

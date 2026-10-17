@@ -119,6 +119,8 @@ export function subscribeTournament(
         const docData = snapshot.data();
         if (docData && docData.divisions) {
           onData({
+            title: docData.title || undefined,
+            subtitle: docData.subtitle || undefined,
             divisions: docData.divisions,
             sheetSyncUrl: docData.sheetSyncUrl || undefined,
             lastSheetSync: docData.lastSheetSync || undefined,
@@ -142,6 +144,8 @@ export async function syncTournamentToFirestore(
   try {
     await setDoc(tournamentDocRef, {
       id: 'main_tournament',
+      title: data.title || 'ĐẠI HỘI TDTT 2026-2027',
+      subtitle: data.subtitle || 'THCS-THPT TRẦN TRƯỜNG SINH',
       divisions: data.divisions,
       sheetSyncUrl: data.sheetSyncUrl || null,
       lastSheetSync: data.lastSheetSync || null,
