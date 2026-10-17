@@ -22,13 +22,13 @@ const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string
   },
   "Phanhieu1": { 
     pass: "Thoai2026", 
-    name: "Quản Lý BĐ Khối 6-7", 
-    allowedDivs: ["khoi67"] 
+    name: "Quản Lý BĐ Khối 8-9", 
+    allowedDivs: ["khoi89"] 
   },
   "Phanhieu2": { 
     pass: "Lam2026", 
-    name: "Quản Lý BĐ Khối 8-9", 
-    allowedDivs: ["khoi89"] 
+    name: "Quản Lý BĐ Khối 6-7", 
+    allowedDivs: ["khoi67"] 
   }
 };
 
