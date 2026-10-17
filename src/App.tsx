@@ -8,11 +8,32 @@ import {
   X, 
   Check, 
   LogOut,
-  MapPin
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
-// 🔑 Mật khẩu Admin
-const ADMIN_PASSWORD = "thcsthptTTS";
+// 🔗 Link API Google Apps Script đồng bộ thời gian thực
+const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbwaevxVit54JZSzYYIkJWzn0-BIKJ-mNSkQbJ4NNXrk5CJt-vgdGOXAc7u4fS0ZIJ--Ug/exec";
+
+// 🔑 Cấu hình 3 Tài khoản và Phạm vi phân quyền tương ứng
+const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
+  "Admin": { 
+    pass: "Khuon@247", 
+    name: "Ban Tổ Chức (Toàn quyền)", 
+    allowedDivs: ["nam", "nu", "khoi89", "khoi67"] 
+  },
+  "Phanhieu1": { 
+    pass: "Thoai2026", 
+    name: "Quản Lý BĐ Khối 6-7", 
+    allowedDivs: ["khoi67"] 
+  },
+  "Phanhieu2": { 
+    pass: "Lam2026", 
+    name: "Quản Lý BĐ Khối 8-9", 
+    allowedDivs: ["khoi89"] 
+  }
+};
 
 export interface Match {
   id: string;
@@ -38,13 +59,9 @@ export interface TeamStanding {
   points: number;
 }
 
-const STORAGE_KEY = 'giai_bong_da_data_v2026_full_4divs';
-
-// Dữ liệu khởi tạo chuẩn 100% theo bảng mã và lịch đấu
-const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match[] }> = {
+const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   nam: {
     name: "BĐ Nam",
-    venue: "Sân Bóng Đám Cỏ / Sân Trường",
     matches: [
       { id: '1', homeTeam: '11A3', awayTeam: '10A4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
       { id: '2', homeTeam: '10A5', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
@@ -81,7 +98,6 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
   },
   nu: {
     name: "BĐ Nữ",
-    venue: "Sân Trường",
     matches: [
       { id: 'NU1', homeTeam: 'Phân hiệu 1', awayTeam: '11A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
       { id: 'NU2', homeTeam: '12A3', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng B' },
@@ -99,7 +115,6 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
   },
   khoi89: {
     name: "BĐ Khối 8-9",
-    venue: "Sân Trường",
     matches: [
       { id: 'K89-1', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 9/8', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
       { id: 'K89-2', homeTeam: 'Lớp 8/1', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
@@ -123,7 +138,6 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
   },
   khoi67: {
     name: "BĐ Khối 6-7",
-    venue: "Sân Trường",
     matches: [
       { id: 'K67-1', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
       { id: 'K67-2', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
@@ -151,75 +165,111 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
 export default function App() {
   const [currentDiv, setCurrentDiv] = useState<string>('nam');
   const [activeTab, setActiveTab] = useState<'matches' | 'standings' | 'bracket'>('matches');
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
-  const [adminPassword, setAdminPassword] = useState<string>('');
+  const [inputUsername, setInputUsername] = useState<string>('');
+  const [inputPassword, setInputPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
 
-  const [tournamentData, setTournamentData] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_DATA;
-  });
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [tournamentData, setTournamentData] = useState(INITIAL_DATA);
 
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingTimeMatch, setEditingTimeMatch] = useState<Match | null>(null);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tournamentData));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [tournamentData]);
+  // Kiểm tra tài khoản hiện tại có quyền chỉnh sửa ở Bảng đấu đang chọn hay không
+  const canEditCurrentDiv = useMemo(() => {
+    if (!currentUser || !ACCOUNTS[currentUser]) return false;
+    return ACCOUNTS[currentUser].allowedDivs.includes(currentDiv);
+  }, [currentUser, currentDiv]);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  // Đồng bộ Cloud Realtime từ Google Sheet
+  const fetchCloudData = () => {
+    setIsSyncing(true);
+    fetch(CLOUD_API_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        setIsSyncing(false);
+        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+          setTournamentData(data);
+        }
+      })
+      .catch((err) => {
+        setIsSyncing(false);
+        console.error("Lỗi đồng bộ Cloud:", err);
+      });
+  };
+
+  useEffect(() => {
+    fetchCloudData();
+    const interval = setInterval(fetchCloudData, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const saveToCloud = (newData: typeof INITIAL_DATA) => {
+    setTournamentData(newData);
+    setIsSyncing(true);
+    fetch(CLOUD_API_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newData),
+    }).then(() => {
+      setTimeout(fetchCloudData, 800);
+    });
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword === ADMIN_PASSWORD) {
-      setIsAdmin(true);
+    const userKey = inputUsername.trim();
+    const account = ACCOUNTS[userKey];
+
+    if (account && account.pass === inputPassword) {
+      setCurrentUser(userKey);
       setLoginModalOpen(false);
-      setAdminPassword('');
+      setInputUsername('');
+      setInputPassword('');
       setLoginError('');
     } else {
-      setLoginError('Mật khẩu Admin không chính xác!');
+      setLoginError('Tên tài khoản hoặc Mật khẩu không chính xác!');
     }
   };
 
   const handleSaveScore = (matchId: string, homeScore?: number, awayScore?: number, status?: Match['status']) => {
-    setTournamentData((prev: typeof INITIAL_DATA) => {
-      const divData = prev[currentDiv];
-      const updatedMatches = divData.matches.map((m) => {
-        if (m.id === matchId) {
-          return {
-            ...m,
-            homeScore,
-            awayScore,
-            status: status || (homeScore !== undefined && awayScore !== undefined ? 'finished' : m.status)
-          };
-        }
-        return m;
-      });
-      return {
-        ...prev,
-        [currentDiv]: { ...divData, matches: updatedMatches }
-      };
+    const divData = tournamentData[currentDiv];
+    const updatedMatches = divData.matches.map((m) => {
+      if (m.id === matchId) {
+        return {
+          ...m,
+          homeScore,
+          awayScore,
+          status: status || (homeScore !== undefined && awayScore !== undefined ? 'finished' : m.status)
+        };
+      }
+      return m;
     });
+
+    const newData = {
+      ...tournamentData,
+      [currentDiv]: { ...divData, matches: updatedMatches }
+    };
+
+    saveToCloud(newData);
     setEditingScoreMatch(null);
   };
 
   const handleSaveTime = (matchId: string, newTime: string) => {
-    setTournamentData((prev: typeof INITIAL_DATA) => {
-      const divData = prev[currentDiv];
-      const updatedMatches = divData.matches.map((m) => (m.id === matchId ? { ...m, time: newTime } : m));
-      return {
-        ...prev,
-        [currentDiv]: { ...divData, matches: updatedMatches }
-      };
-    });
+    const divData = tournamentData[currentDiv];
+    const updatedMatches = divData.matches.map((m) => (m.id === matchId ? { ...m, time: newTime } : m));
+
+    const newData = {
+      ...tournamentData,
+      [currentDiv]: { ...divData, matches: updatedMatches }
+    };
+
+    saveToCloud(newData);
     setEditingTimeMatch(null);
   };
 
@@ -282,6 +332,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16 font-sans">
+      {/* HEADER TỔNG */}
       <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
@@ -291,15 +342,23 @@ export default function App() {
             <p className="text-xs text-emerald-200">Cập nhật kết quả & Lịch thi đấu trực tiếp</p>
           </div>
 
-          <div>
-            {isAdmin ? (
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={fetchCloudData}
+              className="p-1.5 bg-emerald-700 hover:bg-emerald-600 rounded-xl transition-colors text-white"
+              title="Cập nhật dữ liệu mới"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-300' : ''}`} />
+            </button>
+
+            {currentUser ? (
               <div className="flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-600 text-xs font-bold text-amber-300">
                 <Unlock className="w-3.5 h-3.5" />
-                <span>Chế độ Admin</span>
+                <span>{ACCOUNTS[currentUser]?.name || currentUser}</span>
                 <button 
-                  onClick={() => setIsAdmin(false)}
+                  onClick={() => setCurrentUser(null)}
                   className="ml-1 p-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-                  title="Đăng xuất Admin"
+                  title="Đăng xuất"
                 >
                   <LogOut className="w-3 h-3" />
                 </button>
@@ -310,13 +369,14 @@ export default function App() {
                 className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-colors border border-emerald-500 shadow-sm"
               >
                 <Lock className="w-3.5 h-3.5 text-amber-300" />
-                <span>Đăng nhập Admin</span>
+                <span>Đăng nhập</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
+      {/* THANH CHỌN 4 NỘI DUNG */}
       <nav className="bg-white border-b border-slate-200 sticky top-[57px] z-10 shadow-xs">
         <div className="max-w-4xl mx-auto px-2 flex gap-1 overflow-x-auto py-2 justify-start sm:justify-center scrollbar-none">
           {Object.keys(INITIAL_DATA).map((key) => {
@@ -338,34 +398,10 @@ export default function App() {
         </div>
       </nav>
 
+      {/* NỘI DUNG CHÍNH */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="inline-block px-2.5 py-0.5 bg-white/20 text-emerald-100 text-[11px] font-bold rounded-full mb-1">
-              Giải Đấu Chính Thức
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black">{tournamentData[currentDiv]?.name}</h2>
-            <p className="text-xs text-emerald-200 flex items-center gap-1 mt-1 font-medium">
-              <MapPin className="w-3.5 h-3.5 text-amber-300" />
-              <span>{tournamentData[currentDiv]?.venue}</span>
-            </p>
-          </div>
-
-          <div className="bg-emerald-950/40 border border-white/10 rounded-xl p-3 flex gap-4 text-center self-start sm:self-auto">
-            <div>
-              <div className="text-[11px] text-emerald-200 font-medium">Tổng số trận</div>
-              <div className="text-lg font-black text-amber-300">{currentMatches.length}</div>
-            </div>
-            <div className="w-px bg-white/20" />
-            <div>
-              <div className="text-[11px] text-emerald-200 font-medium">Đã thi đấu</div>
-              <div className="text-lg font-black text-white">
-                {currentMatches.filter((m) => m.status === 'finished').length}
-              </div>
-            </div>
-          </div>
-        </div>
-
+        
+        {/* TAB CHUYỂN ĐỔI CHẾ ĐỘ XEM */}
         <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
           <button
             onClick={() => setActiveTab('matches')}
@@ -404,7 +440,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* 1. LỊCH THI ĐẤU & TỈ SỐ */}
+        {/* 1. XEM LỊCH THI ĐẤU & TỈ SỐ */}
         {activeTab === 'matches' && (
           <div className="space-y-3">
             {currentMatches.map((match) => (
@@ -415,11 +451,11 @@ export default function App() {
                 <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
                   <span className="font-bold text-slate-600">{match.round} {match.group ? `• ${match.group}` : ''}</span>
                   <div className="flex items-center gap-2">
-                    <span>{match.time}</span>
-                    {isAdmin && (
+                    <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">{match.time}</span>
+                    {canEditCurrentDiv && (
                       <button
                         onClick={() => setEditingTimeMatch(match)}
-                        className="text-emerald-700 hover:underline font-bold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md"
+                        className="text-emerald-700 hover:underline font-bold text-[11px] bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md"
                       >
                         Sửa giờ
                       </button>
@@ -455,7 +491,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {isAdmin && (
+                {canEditCurrentDiv && (
                   <div className="pt-2 border-t border-slate-100 flex justify-end">
                     <button
                       onClick={() => setEditingScoreMatch(match)}
@@ -470,7 +506,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. BẢNG XẾP HẠNG */}
+        {/* 2. XEM BẢNG XẾP HẠNG TỰ ĐỘNG */}
         {activeTab === 'standings' && (
           <div className="space-y-4">
             {Object.keys(groupStandings).length === 0 ? (
@@ -519,12 +555,12 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. NHÁNH ĐẤU KNOCKOUT */}
+        {/* 3. XEM NHÁNH ĐẤU KNOCKOUT */}
         {activeTab === 'bracket' && (
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider">Sơ đồ thi đấu Knockout</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {currentMatches.filter((m) => m.round.includes('TK') || m.round.includes('BK') || m.round.includes('CK') || m.round.includes('Chung kết')).map((m) => (
+              {currentMatches.filter((m) => m.round.includes('TK') || m.round.includes('BK') || m.round.includes('CK')).map((m) => (
                 <div key={m.id} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
                   <div className="text-[11px] font-bold text-emerald-700 uppercase">{m.round}</div>
                   <div className="flex items-center justify-between font-extrabold text-sm">
@@ -542,30 +578,50 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL ĐĂNG NHẬP ADMIN */}
+      {/* MODAL ĐĂNG NHẬP (CÓ NÚT ẨN/HIỆN MẬT KHẨU) */}
       {loginModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-2">
                 <Lock className="w-4 h-4 text-emerald-600" />
-                <span>Đăng nhập Ban Tổ Chức</span>
+                <span>Đăng nhập Ban Quản Lý</span>
               </h3>
               <button onClick={() => setLoginModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAdminLogin} className="space-y-3">
+            <form onSubmit={handleLogin} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu Quản trị Admin:</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Tên tài khoản:</label>
                 <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Mật khẩu Admin"
+                  type="text"
+                  value={inputUsername}
+                  onChange={(e) => setInputUsername(e.target.value)}
+                  placeholder="Admin, Phanhieu1 hoặc Phanhieu2"
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu:</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={inputPassword}
+                    onChange={(e) => setInputPassword(e.target.value)}
+                    placeholder="Mật khẩu"
+                    className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {loginError && <p className="text-xs text-red-500 font-medium">{loginError}</p>}
@@ -582,7 +638,7 @@ export default function App() {
                   type="submit"
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm"
                 >
-                  Xác nhận
+                  Đăng nhập
                 </button>
               </div>
             </form>
@@ -662,7 +718,7 @@ export default function App() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Thời gian (Giờ, Thứ, Ngày):</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Thời gian thi đấu (Ví dụ: 7h30, Thứ 6, 17/10):</label>
               <input
                 type="text"
                 defaultValue={editingTimeMatch.time}
@@ -686,7 +742,7 @@ export default function App() {
                 }}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm"
               >
-                Lưu Giờ Đấu
+                Lưu Thời Gian
               </button>
             </div>
           </div>
