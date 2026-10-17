@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// 1. CẤU HÌNH FIREBASE REALTIME DATABASE (HOÀN CHỈNH)
+// 1. CẤU HÌNH FIREBASE REALTIME DATABASE
 // ---------------------------------------------------------------------------
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
@@ -33,7 +33,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ---------------------------------------------------------------------------
-// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU
+// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU (ĐÃ TÍCH HỢP LỊCH TRỰC TIẾP)
 // ---------------------------------------------------------------------------
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
@@ -82,10 +82,10 @@ const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   nam: {
     name: "BĐ Nam",
     matches: [
-      { id: 'NAM-1', homeTeam: '11A3', awayTeam: '10A4', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
-      { id: 'NAM-2', homeTeam: '10A5', awayTeam: '11A5', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
-      { id: 'NAM-3', homeTeam: '12A4', awayTeam: '12A2', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng B', codePair: 'B1-B2' },
-      { id: 'NAM-4', homeTeam: '10A6', awayTeam: '12A3', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng B', codePair: 'B3-B4' },
+      { id: 'NAM-1', homeTeam: '11A3', awayTeam: '10A4', time: '7h15, CN, 18/10', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'NAM-2', homeTeam: '10A5', awayTeam: '11A5', time: '8h00, CN, 18/10', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
+      { id: 'NAM-3', homeTeam: '12A4', awayTeam: '12A2', time: '13h45, CN, 18/10', status: 'scheduled', round: 'Trận 3', group: 'Bảng B', codePair: 'B1-B2' },
+      { id: 'NAM-4', homeTeam: '10A6', awayTeam: '12A3', time: '14h45, CN, 18/10', status: 'scheduled', round: 'Trận 4', group: 'Bảng B', codePair: 'B3-B4' },
       { id: 'NAM-5', homeTeam: '10A2', awayTeam: '10A3', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng C', codePair: 'C1-C2' },
       { id: 'NAM-6', homeTeam: '11A1', awayTeam: '10A1', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng C', codePair: 'C3-C4' },
       { id: 'NAM-7', homeTeam: '12A1', awayTeam: '11A4', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng D', codePair: 'D1-D2' },
@@ -135,10 +135,10 @@ const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   khoi89: {
     name: "BĐ Khối 8-9",
     matches: [
-      { id: 'K89-1', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 9/8', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
-      { id: 'K89-2', homeTeam: 'Lớp 8/1', awayTeam: 'Lớp 8/3', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
-      { id: 'K89-3', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/1', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng B', codePair: 'B1-B2' },
-      { id: 'K89-4', homeTeam: 'Lớp 9/3', awayTeam: 'Lớp 9/2', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng B', codePair: 'B3-B4' },
+      { id: 'K89-1', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 9/8', time: '7h15, CN, 18/10', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'K89-2', homeTeam: 'Lớp 8/1', awayTeam: 'Lớp 8/3', time: '8h00, CN, 18/10', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
+      { id: 'K89-3', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/1', time: '13h45, CN, 18/10', status: 'scheduled', round: 'Trận 3', group: 'Bảng B', codePair: 'B1-B2' },
+      { id: 'K89-4', homeTeam: 'Lớp 9/3', awayTeam: 'Lớp 9/2', time: '14h45, CN, 18/10', status: 'scheduled', round: 'Trận 4', group: 'Bảng B', codePair: 'B3-B4' },
       { id: 'K89-5', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/9', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng C', codePair: 'C1-C2' },
       { id: 'K89-6', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/1', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng A', codePair: 'A1-A3' },
       { id: 'K89-7', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/3', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng A', codePair: 'A2-A4' },
@@ -158,10 +158,10 @@ const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   khoi67: {
     name: "BĐ Khối 6-7",
     matches: [
-      { id: 'K67-1', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/4', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
-      { id: 'K67-2', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/4', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
-      { id: 'K67-3', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/5', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng A', codePair: 'A1-A5' },
-      { id: 'K67-4', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 7/5', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng A', codePair: 'A2-A3' },
+      { id: 'K67-1', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/4', time: '7h15, CN, 18/10', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'K67-2', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/4', time: '8h00, CN, 18/10', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
+      { id: 'K67-3', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/5', time: '13h45, CN, 18/10', status: 'scheduled', round: 'Trận 3', group: 'Bảng A', codePair: 'A1-A5' },
+      { id: 'K67-4', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 7/5', time: '14h45, CN, 18/10', status: 'scheduled', round: 'Trận 4', group: 'Bảng A', codePair: 'A2-A3' },
       { id: 'K67-5', homeTeam: 'Lớp 6/4', awayTeam: 'Lớp 6/5', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng A', codePair: 'A4-A5' },
       { id: 'K67-6', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/5', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng A', codePair: 'A1-A3' },
       { id: 'K67-7', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/4', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng A', codePair: 'A2-A4' },
@@ -205,7 +205,7 @@ export default function App() {
   const [tempMatchStatus, setTempMatchStatus] = useState<Match['status']>('scheduled');
   const [tempTime, setTempTime] = useState<string>('');
 
-  // 🔄 KẾT NỐI REALTIME DATABASE: Lắng nghe biến động dữ liệu liên tục từ Server
+  // 🔄 KẾT NỐI REALTIME DATABASE
   useEffect(() => {
     const tournamentRef = ref(db, 'tournamentData');
     const unsubscribe = onValue(tournamentRef, (snapshot) => {
