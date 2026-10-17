@@ -9,12 +9,13 @@ import {
   X, 
   Check, 
   Trophy, 
-  RefreshCw,
   LogOut,
   MapPin
 } from 'lucide-react';
 
-// Định nghĩa cấu trúc dữ liệu Trận đấu & Bảng xếp hạng
+// 🔑 THAY ĐỔI MẬT KHẨU ADMIN CỦA BẠN TẠI ĐÂY
+const ADMIN_PASSWORD = "HoithaoTTS2026"; // Bạn có thể sửa "123" thành mật khẩu bạn muốn (ví dụ: "btc2026")
+
 export interface Match {
   id: string;
   homeTeam: string;
@@ -42,7 +43,6 @@ export interface TeamStanding {
 
 const STORAGE_KEY = 'giai_bong_da_data_v2026';
 
-// Dữ liệu mẫu khởi tạo cho 4 nội dung giải đấu
 const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match[] }> = {
   nam: {
     name: "BĐ Nam",
@@ -94,7 +94,6 @@ export default function App() {
   const [adminPassword, setAdminPassword] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
 
-  // Lưu và tải dữ liệu từ LocalStorage để chống mất dữ liệu khi F5
   const [tournamentData, setTournamentData] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -119,17 +118,16 @@ export default function App() {
   // Đăng nhập Admin
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword === '123456' || adminPassword === 'admin') {
+    if (adminPassword === ADMIN_PASSWORD) {
       setIsAdmin(true);
       setLoginModalOpen(false);
       setAdminPassword('');
       setLoginError('');
     } else {
-      setLoginError('Mật khẩu Admin không đúng! (Mật khẩu mặc định: 123456)');
+      setLoginError('Mật khẩu Admin không chính xác!');
     }
   };
 
-  // Cập nhật tỷ số trận đấu
   const handleSaveScore = (matchId: string, homeScore?: number, awayScore?: number, status?: Match['status']) => {
     setTournamentData((prev: typeof INITIAL_DATA) => {
       const divData = prev[currentDiv];
@@ -152,7 +150,6 @@ export default function App() {
     setEditingScoreMatch(null);
   };
 
-  // Cập nhật thời gian thi đấu
   const handleSaveTime = (matchId: string, newTime: string) => {
     setTournamentData((prev: typeof INITIAL_DATA) => {
       const divData = prev[currentDiv];
@@ -165,13 +162,11 @@ export default function App() {
     setEditingTimeMatch(null);
   };
 
-  // Tính toán Bảng xếp hạng tự động
   const standings = useMemo(() => {
     const matches: Match[] = tournamentData[currentDiv]?.matches || [];
     const teamsMap: Record<string, TeamStanding> = {};
 
     matches.forEach((m) => {
-      // Chỉ tính các trận thuộc Vòng bảng đã hoàn thành
       if (m.status === 'finished' && m.homeScore !== undefined && m.awayScore !== undefined && m.round.includes('Vòng')) {
         [m.homeTeam, m.awayTeam].forEach((teamName) => {
           if (!teamsMap[teamName]) {
@@ -218,7 +213,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16 font-sans">
-      {/* HEADER TỔNG */}
       <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
@@ -254,7 +248,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* 1. THANH CHỌN 4 NỘI DUNG GIẢI ĐẤU */}
       <nav className="bg-white border-b border-slate-200 sticky top-[57px] z-10 shadow-xs">
         <div className="max-w-4xl mx-auto px-2 flex gap-1 overflow-x-auto py-2 justify-start sm:justify-center scrollbar-none">
           {Object.keys(INITIAL_DATA).map((key) => {
@@ -276,9 +269,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* NỘI DUNG CHÍNH */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
-        {/* BANNER THÔNG TIN MÔN ĐẤU */}
         <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="inline-block px-2.5 py-0.5 bg-white/20 text-emerald-100 text-[11px] font-bold rounded-full mb-1">
@@ -306,7 +297,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* 2. THANH CHUYỂN TẢI 3 CHẾ ĐỘ XEM: LỊCH ĐẤU, BẢNG ĐIỂM, NHÁNH ĐẤU */}
         <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
           <button
             onClick={() => setActiveTab('matches')}
@@ -345,7 +335,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* CHẾ ĐỘ XEM 1: LỊCH THI ĐẤU & TỈ SỐ */}
         {activeTab === 'matches' && (
           <div className="space-y-3">
             {currentMatches.map((match) => (
@@ -396,7 +385,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Dành cho Admin: Nút Nhập Tỷ Số */}
                 {isAdmin && (
                   <div className="pt-2 border-t border-slate-100 flex justify-end">
                     <button
@@ -412,7 +400,6 @@ export default function App() {
           </div>
         )}
 
-        {/* CHẾ ĐỘ XEM 2: BẢNG ĐIỂM (XẾP HẠNG) */}
         {activeTab === 'standings' && (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-600">
@@ -457,7 +444,6 @@ export default function App() {
           </div>
         )}
 
-        {/* CHẾ ĐỘ XEM 3: NHÁNH ĐẤU (LOẠI TRỰC TIẾP) */}
         {activeTab === 'bracket' && (
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider">Sơ đồ thi đấu Knockout</h3>
@@ -480,7 +466,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL ĐĂNG NHẬP ADMIN */}
+      {/* MODAL ĐĂNG NHẬP ADMIN BẢO MẬT */}
       {loginModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100">
@@ -497,11 +483,12 @@ export default function App() {
             <form onSubmit={handleAdminLogin} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu Quản trị Admin:</label>
+                {/* 🔒 Ẩn mật khẩu bằng type="password" và không dùng placeholder lộ thông tin */}
                 <input
                   type="password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Nhập 123456"
+                  placeholder="Mật khẩu Admin"
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -528,7 +515,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL CẬP NHẬT TỶ SỐ (CHỈ ADMIN) */}
+      {/* MODAL CẬP NHẬT TỶ SỐ */}
       {editingScoreMatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100 space-y-4">
@@ -588,7 +575,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL SỬA GIỜ THI ĐẤU (CHỈ ADMIN) */}
+      {/* MODAL SỬA GIỜ THI ĐẤU */}
       {editingTimeMatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100 space-y-4">
