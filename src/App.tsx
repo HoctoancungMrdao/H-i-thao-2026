@@ -11,8 +11,8 @@ import {
   MapPin
 } from 'lucide-react';
 
-// 🔑 Mật khẩu Admin (Bạn có thể tự đổi ở đây)
-const ADMIN_PASSWORD = "THCSTHPTTTS";
+// 🔑 Mật khẩu Admin
+const ADMIN_PASSWORD = "thcsthptTTS";
 
 export interface Match {
   id: string;
@@ -38,15 +38,14 @@ export interface TeamStanding {
   points: number;
 }
 
-const STORAGE_KEY = 'giai_bong_da_data_v2026_bdnam_31tran';
+const STORAGE_KEY = 'giai_bong_da_data_v2026_full_4divs';
 
-// Dữ liệu khởi tạo chuẩn 31 trận BĐ Nam từ sơ đồ
+// Dữ liệu khởi tạo chuẩn 100% theo bảng mã và lịch đấu
 const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match[] }> = {
   nam: {
     name: "BĐ Nam",
     venue: "Sân Bóng Đám Cỏ / Sân Trường",
     matches: [
-      // --- LƯỢT 1 VÒNG BẢNG (Trận 1 - 8) ---
       { id: '1', homeTeam: '11A3', awayTeam: '10A4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
       { id: '2', homeTeam: '10A5', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
       { id: '3', homeTeam: '12A4', awayTeam: '12A2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng B' },
@@ -55,8 +54,6 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
       { id: '6', homeTeam: '11A1', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng C' },
       { id: '7', homeTeam: '12A1', awayTeam: '11A4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng D' },
       { id: '8', homeTeam: '12A5', awayTeam: '10A7', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng D' },
-
-      // --- LƯỢT 2 VÒNG BẢNG (Trận 9 - 16) ---
       { id: '9', homeTeam: '11A3', awayTeam: '10A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng A' },
       { id: '10', homeTeam: '10A4', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10', group: 'Bảng A' },
       { id: '11', homeTeam: '12A4', awayTeam: '10A6', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11', group: 'Bảng B' },
@@ -65,8 +62,6 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
       { id: '14', homeTeam: '10A3', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 14', group: 'Bảng C' },
       { id: '15', homeTeam: '12A1', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 15', group: 'Bảng D' },
       { id: '16', homeTeam: '11A4', awayTeam: '10A7', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 16', group: 'Bảng D' },
-
-      // --- LƯỢT 3 VÒNG BẢNG (Trận 17 - 24) ---
       { id: '17', homeTeam: '11A3', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 17', group: 'Bảng A' },
       { id: '18', homeTeam: '10A4', awayTeam: '10A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 18', group: 'Bảng A' },
       { id: '19', homeTeam: '12A4', awayTeam: '12A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 19', group: 'Bảng B' },
@@ -75,18 +70,12 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
       { id: '22', homeTeam: '10A3', awayTeam: '11A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 22', group: 'Bảng C' },
       { id: '23', homeTeam: '12A1', awayTeam: '10A7', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 23', group: 'Bảng D' },
       { id: '24', homeTeam: '11A4', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 24', group: 'Bảng D' },
-
-      // --- TỨ KẾT (Trận 25 - 28) ---
       { id: '25', homeTeam: 'Nhất A', awayTeam: 'Nhì C', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 25 (TK1)' },
       { id: '26', homeTeam: 'Nhất D', awayTeam: 'Nhì B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 26 (TK2)' },
       { id: '27', homeTeam: 'Nhất B', awayTeam: 'Nhì D', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 27 (TK3)' },
       { id: '28', homeTeam: 'Nhất C', awayTeam: 'Nhì A', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 28 (TK4)' },
-
-      // --- BÁN KẾT (Trận 29 - 30) ---
       { id: '29', homeTeam: 'Thắng TK1', awayTeam: 'Thắng TK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 29 (BK1)' },
       { id: '30', homeTeam: 'Thắng TK3', awayTeam: 'Thắng TK4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 30 (BK2)' },
-
-      // --- CHUNG KẾT (Trận 31) ---
       { id: '31', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 31 (CK)' }
     ]
   },
@@ -94,24 +83,67 @@ const INITIAL_DATA: Record<string, { name: string; venue: string; matches: Match
     name: "BĐ Nữ",
     venue: "Sân Trường",
     matches: [
-      { id: 'NU1', homeTeam: '10A1', awayTeam: '10A2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
-      { id: 'NU-CK', homeTeam: 'Nhất Bảng A', awayTeam: 'Nhất Bảng B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Chung kết' }
+      { id: 'NU1', homeTeam: 'Phân hiệu 1', awayTeam: '11A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
+      { id: 'NU2', homeTeam: '12A3', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng B' },
+      { id: 'NU3', homeTeam: '11A5', awayTeam: '10A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng C' },
+      { id: 'NU4', homeTeam: 'Phân hiệu 1', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng A' },
+      { id: 'NU5', homeTeam: '12A3', awayTeam: '12A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng B' },
+      { id: 'NU6', homeTeam: '11A5', awayTeam: 'Phân hiệu 2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng C' },
+      { id: 'NU7', homeTeam: '11A1', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng A' },
+      { id: 'NU8', homeTeam: '10A1', awayTeam: '12A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng B' },
+      { id: 'NU9', homeTeam: '10A3', awayTeam: 'Phân hiệu 2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng C' },
+      { id: 'NU10', homeTeam: 'Nhất A', awayTeam: 'Nhì số 1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10 (BK1)' },
+      { id: 'NU11', homeTeam: 'Nhất B', awayTeam: 'Nhất C', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11 (BK2)' },
+      { id: 'NU12', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12 (CK)' }
     ]
   },
   khoi89: {
     name: "BĐ Khối 8-9",
     venue: "Sân Trường",
     matches: [
-      { id: 'K89-1', homeTeam: '9A1', awayTeam: '9A2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Khối 9' },
-      { id: 'K89-CK', homeTeam: 'Nhất K9', awayTeam: 'Nhất K8', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Chung kết' }
+      { id: 'K89-1', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 9/8', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
+      { id: 'K89-2', homeTeam: 'Lớp 8/1', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
+      { id: 'K89-3', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng B' },
+      { id: 'K89-4', homeTeam: 'Lớp 9/3', awayTeam: 'Lớp 9/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng B' },
+      { id: 'K89-5', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/9', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng C' },
+      { id: 'K89-6', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng A' },
+      { id: 'K89-7', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng A' },
+      { id: 'K89-8', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng B' },
+      { id: 'K89-9', homeTeam: 'Lớp 9/1', awayTeam: 'Lớp 9/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng B' },
+      { id: 'K89-10', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10', group: 'Bảng C' },
+      { id: 'K89-11', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11', group: 'Bảng A' },
+      { id: 'K89-12', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12', group: 'Bảng A' },
+      { id: 'K89-13', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 13', group: 'Bảng B' },
+      { id: 'K89-14', homeTeam: 'Lớp 9/1', awayTeam: 'Lớp 9/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 14', group: 'Bảng B' },
+      { id: 'K89-15', homeTeam: 'Lớp 9/9', awayTeam: 'Lớp 9/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 15', group: 'Bảng C' },
+      { id: 'K89-16', homeTeam: 'Nhất A', awayTeam: 'Nhất B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 16 (BK1)' },
+      { id: 'K89-17', homeTeam: 'Nhất C', awayTeam: 'Nhì AB', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 17 (BK2)' },
+      { id: 'K89-18', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 18 (CK)' }
     ]
   },
   khoi67: {
     name: "BĐ Khối 6-7",
     venue: "Sân Trường",
     matches: [
-      { id: 'K67-1', homeTeam: '7A1', awayTeam: '7A2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Khối 7' },
-      { id: 'K67-CK', homeTeam: 'Nhất K7', awayTeam: 'Nhất K6', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Chung kết' }
+      { id: 'K67-1', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
+      { id: 'K67-2', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
+      { id: 'K67-3', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng A' },
+      { id: 'K67-4', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 7/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng A' },
+      { id: 'K67-5', homeTeam: 'Lớp 6/4', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng A' },
+      { id: 'K67-6', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng A' },
+      { id: 'K67-7', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng A' },
+      { id: 'K67-8', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng A' },
+      { id: 'K67-9', homeTeam: 'Lớp 6/1', awayTeam: 'Lớp 6/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng B' },
+      { id: 'K67-10', homeTeam: 'Lớp 6/3', awayTeam: 'Lớp 7/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10', group: 'Bảng C' },
+      { id: 'K67-11', homeTeam: 'Lớp 6/1', awayTeam: 'Lớp 7/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11', group: 'Bảng B' },
+      { id: 'K67-12', homeTeam: 'Lớp 6/3', awayTeam: 'Lớp 7/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12', group: 'Bảng C' },
+      { id: 'K67-13', homeTeam: 'Lớp 6/2', awayTeam: 'Lớp 7/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 13', group: 'Bảng B' },
+      { id: 'K67-14', homeTeam: 'Lớp 7/2', awayTeam: 'Lớp 7/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 14', group: 'Bảng C' },
+      { id: 'K67-15', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 15', group: 'Bảng A' },
+      { id: 'K67-16', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 16', group: 'Bảng A' },
+      { id: 'K67-17', homeTeam: 'Nhất A', awayTeam: 'Nhất B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 17 (BK1)' },
+      { id: 'K67-18', homeTeam: 'Nhì A', awayTeam: 'Nhất C', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 18 (BK2)' },
+      { id: 'K67-19', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 19 (CK)' }
     ]
   }
 };
@@ -191,7 +223,6 @@ export default function App() {
     setEditingTimeMatch(null);
   };
 
-  // Tính Bảng xếp hạng tự động phân theo các Bảng A, B, C, D
   const groupStandings = useMemo(() => {
     const matches: Match[] = tournamentData[currentDiv]?.matches || [];
     const groups: Record<string, Record<string, TeamStanding>> = {};
@@ -373,7 +404,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* 1. TAB LỊCH THI ĐẤU & TỈ SỐ */}
+        {/* 1. LỊCH THI ĐẤU & TỈ SỐ */}
         {activeTab === 'matches' && (
           <div className="space-y-3">
             {currentMatches.map((match) => (
@@ -439,7 +470,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. TAB BẢNG XẾP HẠNG */}
+        {/* 2. BẢNG XẾP HẠNG */}
         {activeTab === 'standings' && (
           <div className="space-y-4">
             {Object.keys(groupStandings).length === 0 ? (
@@ -488,12 +519,12 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. TAB NHÁNH ĐẤU KNOCKOUT */}
+        {/* 3. NHÁNH ĐẤU KNOCKOUT */}
         {activeTab === 'bracket' && (
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider">Sơ đồ thi đấu Knockout (Tứ Kết → Chung Kết)</h3>
+            <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider">Sơ đồ thi đấu Knockout</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {currentMatches.filter((m) => m.round.includes('TK') || m.round.includes('BK') || m.round.includes('CK')).map((m) => (
+              {currentMatches.filter((m) => m.round.includes('TK') || m.round.includes('BK') || m.round.includes('CK') || m.round.includes('Chung kết')).map((m) => (
                 <div key={m.id} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
                   <div className="text-[11px] font-bold text-emerald-700 uppercase">{m.round}</div>
                   <div className="flex items-center justify-between font-extrabold text-sm">
