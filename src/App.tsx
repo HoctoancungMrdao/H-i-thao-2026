@@ -32,7 +32,7 @@ import {
 
 const STORAGE_KEY = 'bong_da_tournament_data_v16';
 
-// Ensure all divisions conform to updated official draw, match numbering, venues, and pairings
+// Cập nhật cấu trúc giải đấu nhưng giữ nguyên toàn bộ tỷ số và thời gian đã nhập
 function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentStore {
   if (!data || !data.divisions) return initialTournamentData;
 
@@ -47,42 +47,38 @@ function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentSto
       return;
     }
 
-    // Map existing matches by ID to preserve scores and customized time/pitch
     const existingMatchesMap = new Map<string, Match>();
     currentDiv.matches.forEach((m) => existingMatchesMap.set(m.id, m));
 
-    // Reconstruct matches using the official sequential template
     const updatedMatches = defaultDiv.matches.map((templateMatch) => {
       const existing = existingMatchesMap.get(templateMatch.id);
       if (!existing) return templateMatch;
 
       return {
         ...templateMatch,
-        // Preserve score and status if played
-        homeScore: existing.homeScore,
-        awayScore: existing.awayScore,
-        status: existing.status,
+        // Giữ nguyên tỷ số và trạng thái nếu trận đấu đã kết thúc
+        homeScore: existing.homeScore ?? templateMatch.homeScore,
+        awayScore: existing.awayScore ?? templateMatch.awayScore,
+        status: existing.status || templateMatch.status,
         hasPenalty: existing.hasPenalty,
         homePen: existing.homePen,
         awayPen: existing.awayPen,
         winnerTeam: existing.winnerTeam,
-        // Preserve user edited time if customized
+        // Ưu tiên thời gian do Admin tùy chỉnh
         time: existing.time || templateMatch.time,
-        // Update to new official venue/pitch from PDF
-        pitch: templateMatch.pitch,
-        note: existing.note,
-        // For knockout matches, enforce user-specified pairCode and placeholder teams
+        pitch: existing.pitch || templateMatch.pitch,
+        note: existing.note || templateMatch.note,
         pairCode: templateMatch.pairCode,
-        homeTeam: (existing.status === 'finished' && existing.homeTeam) ? existing.homeTeam : templateMatch.homeTeam,
-        awayTeam: (existing.status === 'finished' && existing.awayTeam) ? existing.awayTeam : templateMatch.awayTeam,
+        homeTeam: (existing.status === 'finished' && existing.homeTeam) ? existing.homeTeam : (existing.homeTeam || templateMatch.homeTeam),
+        awayTeam: (existing.status === 'finished' && existing.awayTeam) ? existing.awayTeam : (existing.awayTeam || templateMatch.awayTeam),
       };
     });
 
     migratedDivisions[divId] = {
       ...currentDiv,
-      division: defaultDiv.division,
-      groups: defaultDiv.groups,
-      teams: defaultDiv.teams,
+      division: { ...defaultDiv.division, ...currentDiv.division },
+      groups: currentDiv.groups || defaultDiv.groups,
+      teams: currentDiv.teams || defaultDiv.teams,
       matches: updatedMatches,
     };
   });
@@ -91,52 +87,55 @@ function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentSto
 }
 
 export default function App() {
-  // Current authenticated user (null = public viewer with read-only access)
+  // Trạng thái đăng nhập của Admin
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
 
-  // Load data from LocalStorage or fallback to initial data
+  // Khởi tạo dữ liệu từ LocalStorage để không bị mất khi F5
   const [store, setStore] = useState<TournamentStore>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return ensureUpToDateTournamentStructure(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.divisions) {
+          return ensureUpToDateTournamentStructure(parsed);
+        }
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('Lỗi khi tải dữ liệu từ localStorage:', e);
     }
     return initialTournamentData;
   });
 
-  // Current division
+  // Tab nội dung giải đấu hiện tại
   const [currentDivisionId, setCurrentDivisionId] = useState<DivisionId>('nam');
 
   // Sub tab: matches, standings, bracket, podium
   const [activeTab, setActiveTab] = useState<'matches' | 'standings' | 'bracket' | 'podium'>('matches');
 
-  // Organizer edit mode (enabled when authorized BTC email logs in)
+  // Chế độ Ban Tổ Chức / Admin
   const [isBtcMode, setIsBtcMode] = useState<boolean>(false);
 
-  // Check if current user email is in the authorized whitelist (4 emails)
+  // Kiểm tra xem Email có nằm trong danh sách Admin được phép sửa hay không
   const isUserAuthorized = useMemo(() => {
     return currentUser ? isAuthorizedEmail(currentUser.email) : false;
   }, [currentUser]);
 
-  // Can edit only if logged in with an authorized email and in BTC mode
+  // Chỉ cho phép chỉnh sửa nếu đã đăng nhập tài khoản Admin và bật chế độ Admin
   const canEdit = isBtcMode && isUserAuthorized;
 
-  // Modals state
+  // Trạng thái các Modal
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingDetailsMatch, setEditingDetailsMatch] = useState<Match | null>(null);
   const [isTeamManagerOpen, setIsTeamManagerOpen] = useState<boolean>(false);
   const [isCsvImportOpen, setIsCsvImportOpen] = useState<boolean>(false);
   const [isScheduleManagerOpen, setIsScheduleManagerOpen] = useState<boolean>(false);
 
-  // Flag to avoid infinite write loops between Firestore listener and local state
+  // Cờ tránh vòng lặp đồng bộ dữ liệu giữa Firestore và LocalState
   const isRemoteSyncRef = useRef<boolean>(false);
 
-  // Test connection on boot and listen to auth changes
+  // Lắng nghe trạng thái đăng nhập
   useEffect(() => {
     testConnection();
 
@@ -153,7 +152,7 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Subscribe to real-time updates from Firestore (so all devices see changes live)
+  // Lắng nghe dữ liệu thời gian thực từ Firestore
   useEffect(() => {
     const unsubscribeDoc = subscribeTournament((remoteData) => {
       if (remoteData && remoteData.divisions) {
@@ -173,7 +172,7 @@ export default function App() {
     };
   }, []);
 
-  // Save changes to localStorage
+  // Tự động lưu dữ liệu vào localStorage mỗi khi store thay đổi
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
@@ -182,7 +181,7 @@ export default function App() {
     }
   }, [store]);
 
-  // Security gate helper: Requires user to be logged in with an authorized BTC email to edit
+  // Hàm yêu cầu quyền Admin: Bật modal đăng nhập nếu người dùng chưa đăng nhập Admin
   const requireBtcLogin = (action: () => void) => {
     if (currentUser && isAuthorizedEmail(currentUser.email)) {
       action();
@@ -191,20 +190,24 @@ export default function App() {
     }
   };
 
-  // Helper to sync to Firestore if user has authorized BTC permissions
+  // Hàm lưu dữ liệu vào State, LocalStorage và đồng bộ lên Cloud Firebase
   const persistAndSync = (newStore: TournamentStore) => {
     setStore(newStore);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
+    } catch {
+      // ignore
+    }
     if (currentUser && isAuthorizedEmail(currentUser.email)) {
       syncTournamentToFirestore(newStore, currentUser).catch((err) => {
-        console.warn('Sync to firestore error:', err);
+        console.warn('Lỗi khi đồng bộ dữ liệu lên Firestore:', err);
       });
     }
   };
 
-  // Current Division Data
   const currentData = store.divisions[currentDivisionId];
 
-  // Match count summary for tabs
+  // Tổng hợp số lượng trận đấu cho các Tab
   const matchesCountSummary = useMemo(() => {
     const summary: Record<DivisionId, { total: number; finished: number }> = {
       nam: { total: 0, finished: 0 },
@@ -226,7 +229,6 @@ export default function App() {
     return summary;
   }, [store]);
 
-  // Divisions info mapping
   const divisionsInfo = useMemo(() => {
     const map: Record<DivisionId, any> = {
       nam: store.divisions.nam.division,
@@ -237,7 +239,7 @@ export default function App() {
     return map;
   }, [store]);
 
-  // Handlers for BTC Editing Actions
+  // Xử lý Lưu Tỷ Số (Chỉ Admin mới thực thi)
   const handleSaveScore = (updatedMatch: Match) => {
     if (!isUserAuthorized) {
       setIsLoginModalOpen(true);
@@ -275,6 +277,7 @@ export default function App() {
     persistAndSync(newStore);
   };
 
+  // Xử lý Lưu Thời gian & Chi tiết Trận đấu (Chỉ Admin)
   const handleSaveMatchDetails = (updatedMatch: Match) => {
     if (!isUserAuthorized) {
       setIsLoginModalOpen(true);
@@ -300,6 +303,7 @@ export default function App() {
     persistAndSync(newStore);
   };
 
+  // Xử lý Lưu Lịch Thi Đấu Hàng Loạt (Chỉ Admin)
   const handleSaveSchedule = (updatedMatches: Match[]) => {
     if (!isUserAuthorized) {
       setIsLoginModalOpen(true);
@@ -454,7 +458,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col text-slate-800 pb-16">
-      {/* Top Header */}
+      {/* Thanh Header */}
       <Header
         isBtcMode={canEdit}
         onToggleBtcMode={() => {
@@ -472,7 +476,7 @@ export default function App() {
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
-      {/* 4 Division Tabs for Mobile */}
+      {/* Tabs chọn nội dung giải đấu */}
       <DivisionTabs
         currentDivisionId={currentDivisionId}
         divisions={divisionsInfo}
@@ -482,9 +486,9 @@ export default function App() {
         matchesCount={matchesCountSummary}
       />
 
-      {/* Main Content Area */}
+      {/* Nội dung chính */}
       <main className="max-w-4xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex-1 space-y-3.5">
-        {/* Division Hero Header Card */}
+        {/* Banner thông tin giải đấu */}
         <div className="bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-800 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm border border-emerald-600/30">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
@@ -501,7 +505,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Quick Status Stats Pill */}
+            {/* Thống kê tiến độ */}
             <div className="flex items-center gap-2 bg-emerald-950/40 border border-white/10 rounded-2xl p-2.5 sm:p-3 backdrop-blur-md self-start sm:self-auto">
               <div className="text-center px-2">
                 <div className="text-xs text-emerald-200 font-medium">Tiến độ</div>
@@ -520,7 +524,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* View Switcher Sub-tabs */}
+        {/* Chuyển đổi các chế độ xem */}
         <div className="bg-white rounded-2xl p-1 border border-slate-200/90 shadow-xs grid grid-cols-4 gap-1 text-xs">
           <button
             onClick={() => setActiveTab('matches')}
@@ -571,7 +575,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Tab 1: Matches View */}
+        {/* Tab 1: Danh sách trận đấu */}
         {activeTab === 'matches' && (
           <MatchesView
             matches={currentData.matches}
@@ -588,7 +592,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 2: Standings View */}
+        {/* Tab 2: Bảng xếp hạng */}
         {activeTab === 'standings' && (
           <StandingsView
             groups={currentData.groups}
@@ -601,7 +605,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 3: Bracket View */}
+        {/* Tab 3: Sơ đồ nhánh đấu */}
         {activeTab === 'bracket' && (
           <BracketView
             matches={currentData.matches}
@@ -612,7 +616,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Podium View */}
+        {/* Tab 4: Đội vô địch / Chung cuộc */}
         {activeTab === 'podium' && (
           <PodiumView
             rankings={currentData.rankings}
@@ -624,7 +628,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Organizer Toolbar (Only for authorized BTC) */}
+      {/* Thanh công cụ nổi dành cho Admin */}
       <BtcToolbar
         isVisible={canEdit}
         onClose={() => setIsBtcMode(false)}
@@ -633,7 +637,7 @@ export default function App() {
         onOpenScheduleManager={() => requireBtcLogin(() => setIsScheduleManagerOpen(true))}
       />
 
-      {/* Account Login Modal */}
+      {/* Modal Đăng Nhập */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
@@ -652,7 +656,7 @@ export default function App() {
         }}
       />
 
-      {/* Score Entry Modal for BTC */}
+      {/* Modal Nhập Tỷ Số */}
       <ScoreEntryModal
         match={editingScoreMatch}
         isOpen={!!editingScoreMatch}
@@ -660,7 +664,7 @@ export default function App() {
         onSave={handleSaveScore}
       />
 
-      {/* Edit Match Time / Venue Modal */}
+      {/* Modal Sửa Thời Gian & Chi Tiết Trận Đấu */}
       <EditMatchModal
         match={editingDetailsMatch}
         isOpen={!!editingDetailsMatch}
@@ -669,7 +673,7 @@ export default function App() {
         onNavigateMatch={handleNavigateMatch}
       />
 
-      {/* Schedule Manager Modal - Bulk or Per-Match Time & Pitch Entry */}
+      {/* Modal Quản Lý Lịch Đấu Hàng Loạt */}
       <ScheduleManagerModal
         divisionName={currentData.division.shortName}
         matches={currentData.matches}
@@ -678,7 +682,7 @@ export default function App() {
         onSaveSchedule={handleSaveSchedule}
       />
 
-      {/* Team Manager Modal */}
+      {/* Modal Quản Lý Đội */}
       <TeamManagerModal
         divisionName={currentData.division.shortName}
         teams={currentData.teams}
@@ -687,7 +691,7 @@ export default function App() {
         onSaveTeams={handleSaveTeams}
       />
 
-      {/* CSV / Spreadsheet Importer Modal */}
+      {/* Modal Nhập Dữ Liệu CSV */}
       <CsvImportModal
         currentDivisionId={currentDivisionId}
         isOpen={isCsvImportOpen}
