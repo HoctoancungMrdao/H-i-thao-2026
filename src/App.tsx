@@ -28,14 +28,11 @@ import {
   GitFork,
   Trophy,
   MapPin,
-  Clock,
-  Activity,
   Flame,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'bong_da_tournament_data_v16';
 
-// Ensure all divisions conform to updated official draw, match numbering, venues, and pairings
 function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentStore {
   if (!data || !data.divisions) return initialTournamentData;
 
@@ -59,20 +56,20 @@ function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentSto
 
       return {
         ...templateMatch,
-        homeScore: existing.homeScore,
-        awayScore: existing.awayScore,
-        status: existing.status,
+        homeScore: existing.homeScore !== undefined ? existing.homeScore : templateMatch.homeScore,
+        awayScore: existing.awayScore !== undefined ? existing.awayScore : templateMatch.awayScore,
+        status: existing.status || templateMatch.status,
         hasPenalty: existing.hasPenalty,
         homePen: existing.homePen,
         awayPen: existing.awayPen,
         winnerTeam: existing.winnerTeam,
         time: existing.time || templateMatch.time,
-        matchMinute: existing.matchMinute || templateMatch.matchMinute, // Thêm lưu vết phút thi đấu
+        matchMinute: existing.matchMinute || templateMatch.matchMinute,
         pitch: templateMatch.pitch,
         note: existing.note,
         pairCode: templateMatch.pairCode,
-        homeTeam: (existing.status === 'finished' && existing.homeTeam) ? existing.homeTeam : templateMatch.homeTeam,
-        awayTeam: (existing.status === 'finished' && existing.awayTeam) ? existing.awayTeam : templateMatch.awayTeam,
+        homeTeam: existing.homeTeam || templateMatch.homeTeam,
+        awayTeam: existing.awayTeam || templateMatch.awayTeam,
       };
     });
 
@@ -121,8 +118,6 @@ export default function App() {
   const [isCsvImportOpen, setIsCsvImportOpen] = useState<boolean>(false);
   const [isScheduleManagerOpen, setIsScheduleManagerOpen] = useState<boolean>(false);
 
-  const isRemoteSyncRef = useRef<boolean>(false);
-
   useEffect(() => {
     testConnection();
 
@@ -142,7 +137,6 @@ export default function App() {
   useEffect(() => {
     const unsubscribeDoc = subscribeTournament((remoteData) => {
       if (remoteData && remoteData.divisions) {
-        isRemoteSyncRef.current = true;
         const upgraded = ensureUpToDateTournamentStructure(remoteData);
         setStore(upgraded);
         try {
@@ -158,14 +152,6 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    } catch {
-      // ignore
-    }
-  }, [store]);
-
   const requireBtcLogin = (action: () => void) => {
     if (currentUser && isAuthorizedEmail(currentUser.email)) {
       action();
@@ -174,8 +160,19 @@ export default function App() {
     }
   };
 
+  // Hàm lưu đồng bộ trực tiếp
   const persistAndSync = (newStore: TournamentStore) => {
+    // 1. Lưu ngay vào bộ nhớ máy tính/điện thoại
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
+    } catch (e) {
+      console.error('LocalStorage save failed', e);
+    }
+
+    // 2. Cập nhật State giao diện
     setStore(newStore);
+
+    // 3. Đồng bộ lên Firebase (nếu đã đăng nhập Admin)
     if (currentUser && isAuthorizedEmail(currentUser.email)) {
       syncTournamentToFirestore(newStore, currentUser).catch((err) => {
         console.warn('Sync to firestore error:', err);
@@ -217,7 +214,6 @@ export default function App() {
     return map;
   }, [store]);
 
-  // Handlers for BTC Editing Actions
   const handleSaveScore = (updatedMatch: Match) => {
     if (!isUserAuthorized) {
       setIsLoginModalOpen(true);
@@ -435,7 +431,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col text-slate-800 pb-16 font-sans">
-      {/* Top Header */}
       <Header
         isBtcMode={canEdit}
         onToggleBtcMode={() => {
@@ -453,7 +448,6 @@ export default function App() {
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
-      {/* 4 Division Tabs */}
       <DivisionTabs
         currentDivisionId={currentDivisionId}
         divisions={divisionsInfo}
@@ -463,11 +457,8 @@ export default function App() {
         matchesCount={matchesCountSummary}
       />
 
-      {/* Main Content Area */}
       <main className="max-w-4xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex-1 space-y-4">
-        {/* Modernized Hero Banner Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white rounded-2xl sm:rounded-3xl p-5 shadow-lg border border-emerald-500/30">
-          {/* Subtle Ambient Light Glow */}
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
 
@@ -493,7 +484,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Quick Status Stats Pill */}
             <div className="flex items-center gap-3 bg-slate-950/40 border border-white/15 rounded-2xl p-3 backdrop-blur-lg self-start sm:self-auto shadow-inner">
               <div className="text-center px-2">
                 <div className="text-[11px] text-emerald-300 font-semibold uppercase tracking-wider">Tiến độ</div>
@@ -514,7 +504,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* View Switcher Sub-tabs */}
         <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs grid grid-cols-4 gap-1 text-xs">
           <button
             onClick={() => setActiveTab('matches')}
@@ -565,7 +554,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Tab 1: Matches View */}
         {activeTab === 'matches' && (
           <MatchesView
             matches={currentData.matches}
@@ -582,7 +570,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 2: Standings View */}
         {activeTab === 'standings' && (
           <StandingsView
             groups={currentData.groups}
@@ -595,7 +582,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 3: Bracket View */}
         {activeTab === 'bracket' && (
           <BracketView
             matches={currentData.matches}
@@ -606,7 +592,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Podium View */}
         {activeTab === 'podium' && (
           <PodiumView
             rankings={currentData.rankings}
@@ -618,7 +603,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Organizer Toolbar (Only for authorized BTC) */}
       <BtcToolbar
         isVisible={canEdit}
         onClose={() => setIsBtcMode(false)}
@@ -627,7 +611,6 @@ export default function App() {
         onOpenScheduleManager={() => requireBtcLogin(() => setIsScheduleManagerOpen(true))}
       />
 
-      {/* Account Login Modal */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
@@ -646,7 +629,6 @@ export default function App() {
         }}
       />
 
-      {/* Score & Time Entry Modal for BTC */}
       <ScoreEntryModal
         match={editingScoreMatch}
         isOpen={!!editingScoreMatch}
@@ -654,7 +636,6 @@ export default function App() {
         onSave={handleSaveScore}
       />
 
-      {/* Edit Match Time / Venue Modal */}
       <EditMatchModal
         match={editingDetailsMatch}
         isOpen={!!editingDetailsMatch}
@@ -663,7 +644,6 @@ export default function App() {
         onNavigateMatch={handleNavigateMatch}
       />
 
-      {/* Schedule Manager Modal */}
       <ScheduleManagerModal
         divisionName={currentData.division.shortName}
         matches={currentData.matches}
@@ -672,7 +652,6 @@ export default function App() {
         onSaveSchedule={handleSaveSchedule}
       />
 
-      {/* Team Manager Modal */}
       <TeamManagerModal
         divisionName={currentData.division.shortName}
         teams={currentData.teams}
@@ -681,7 +660,6 @@ export default function App() {
         onSaveTeams={handleSaveTeams}
       />
 
-      {/* CSV Importer Modal */}
       <CsvImportModal
         currentDivisionId={currentDivisionId}
         isOpen={isCsvImportOpen}
