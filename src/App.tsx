@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Calendar, 
   BarChart2, 
@@ -9,10 +9,11 @@ import {
   Check, 
   LogOut,
   Eye,
-  EyeOff
+  EyeOff,
+  Clock
 } from 'lucide-react';
 
-// 🔑 Cấu hình 3 Tài khoản & Phân quyền trực tiếp trong hệ thống
+// 🔑 Cấu hình 3 Tài khoản & Phân quyền chuẩn
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
     pass: "Khuon@247", 
@@ -41,6 +42,7 @@ export interface Match {
   status: 'scheduled' | 'live' | 'finished';
   round: string;
   group?: string;
+  codePair?: string;
 }
 
 export interface TeamStanding {
@@ -55,105 +57,106 @@ export interface TeamStanding {
   points: number;
 }
 
+// ⚽ DỮ LIỆU SẠCH TỪ EXCEL (ĐÃ XÓA TOÀN BỘ GIỜ CŨ & BỔ SUNG MÃ SỐ CẶP ĐẤU)
 const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   nam: {
     name: "BĐ Nam",
     matches: [
-      { id: '1', homeTeam: '11A3', awayTeam: '10A4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
-      { id: '2', homeTeam: '10A5', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
-      { id: '3', homeTeam: '12A4', awayTeam: '12A2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng B' },
-      { id: '4', homeTeam: '10A6', awayTeam: '12A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng B' },
-      { id: '5', homeTeam: '10A2', awayTeam: '10A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng C' },
-      { id: '6', homeTeam: '11A1', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng C' },
-      { id: '7', homeTeam: '12A1', awayTeam: '11A4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng D' },
-      { id: '8', homeTeam: '12A5', awayTeam: '10A7', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng D' },
-      { id: '9', homeTeam: '11A3', awayTeam: '10A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng A' },
-      { id: '10', homeTeam: '10A4', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10', group: 'Bảng A' },
-      { id: '11', homeTeam: '12A4', awayTeam: '10A6', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11', group: 'Bảng B' },
-      { id: '12', homeTeam: '12A2', awayTeam: '12A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12', group: 'Bảng B' },
-      { id: '13', homeTeam: '10A2', awayTeam: '11A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 13', group: 'Bảng C' },
-      { id: '14', homeTeam: '10A3', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 14', group: 'Bảng C' },
-      { id: '15', homeTeam: '12A1', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 15', group: 'Bảng D' },
-      { id: '16', homeTeam: '11A4', awayTeam: '10A7', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 16', group: 'Bảng D' },
-      { id: '17', homeTeam: '11A3', awayTeam: '11A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 17', group: 'Bảng A' },
-      { id: '18', homeTeam: '10A4', awayTeam: '10A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 18', group: 'Bảng A' },
-      { id: '19', homeTeam: '12A4', awayTeam: '12A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 19', group: 'Bảng B' },
-      { id: '20', homeTeam: '12A2', awayTeam: '10A6', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 20', group: 'Bảng B' },
-      { id: '21', homeTeam: '10A2', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 21', group: 'Bảng C' },
-      { id: '22', homeTeam: '10A3', awayTeam: '11A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 22', group: 'Bảng C' },
-      { id: '23', homeTeam: '12A1', awayTeam: '10A7', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 23', group: 'Bảng D' },
-      { id: '24', homeTeam: '11A4', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 24', group: 'Bảng D' },
-      { id: '25', homeTeam: 'Nhất A', awayTeam: 'Nhì C', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 25 (TK1)' },
-      { id: '26', homeTeam: 'Nhất D', awayTeam: 'Nhì B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 26 (TK2)' },
-      { id: '27', homeTeam: 'Nhất B', awayTeam: 'Nhì D', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 27 (TK3)' },
-      { id: '28', homeTeam: 'Nhất C', awayTeam: 'Nhì A', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 28 (TK4)' },
-      { id: '29', homeTeam: 'Thắng TK1', awayTeam: 'Thắng TK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 29 (BK1)' },
-      { id: '30', homeTeam: 'Thắng TK3', awayTeam: 'Thắng TK4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 30 (BK2)' },
-      { id: '31', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 31 (CK)' }
+      { id: 'NAM-1', homeTeam: '11A3', awayTeam: '10A4', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'NAM-2', homeTeam: '10A5', awayTeam: '11A5', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
+      { id: 'NAM-3', homeTeam: '12A4', awayTeam: '12A2', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng B', codePair: 'B1-B2' },
+      { id: 'NAM-4', homeTeam: '10A6', awayTeam: '12A3', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng B', codePair: 'B3-B4' },
+      { id: 'NAM-5', homeTeam: '10A2', awayTeam: '10A3', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng C', codePair: 'C1-C2' },
+      { id: 'NAM-6', homeTeam: '11A1', awayTeam: '10A1', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng C', codePair: 'C3-C4' },
+      { id: 'NAM-7', homeTeam: '12A1', awayTeam: '11A4', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng D', codePair: 'D1-D2' },
+      { id: 'NAM-8', homeTeam: '12A5', awayTeam: '10A7', time: '', status: 'scheduled', round: 'Trận 8', group: 'Bảng D', codePair: 'D3-D4' },
+      { id: 'NAM-9', homeTeam: '11A3', awayTeam: '10A5', time: '', status: 'scheduled', round: 'Trận 9', group: 'Bảng A', codePair: 'A1-A3' },
+      { id: 'NAM-10', homeTeam: '10A4', awayTeam: '11A5', time: '', status: 'scheduled', round: 'Trận 10', group: 'Bảng A', codePair: 'A2-A4' },
+      { id: 'NAM-11', homeTeam: '12A4', awayTeam: '10A6', time: '', status: 'scheduled', round: 'Trận 11', group: 'Bảng B', codePair: 'B1-B3' },
+      { id: 'NAM-12', homeTeam: '12A2', awayTeam: '12A3', time: '', status: 'scheduled', round: 'Trận 12', group: 'Bảng B', codePair: 'B2-B4' },
+      { id: 'NAM-13', homeTeam: '10A2', awayTeam: '11A1', time: '', status: 'scheduled', round: 'Trận 13', group: 'Bảng C', codePair: 'C1-C3' },
+      { id: 'NAM-14', homeTeam: '10A3', awayTeam: '10A1', time: '', status: 'scheduled', round: 'Trận 14', group: 'Bảng C', codePair: 'C2-C4' },
+      { id: 'NAM-15', homeTeam: '12A1', awayTeam: '12A5', time: '', status: 'scheduled', round: 'Trận 15', group: 'Bảng D', codePair: 'D1-D3' },
+      { id: 'NAM-16', homeTeam: '11A4', awayTeam: '10A7', time: '', status: 'scheduled', round: 'Trận 16', group: 'Bảng D', codePair: 'D2-D4' },
+      { id: 'NAM-17', homeTeam: '11A3', awayTeam: '11A5', time: '', status: 'scheduled', round: 'Trận 17', group: 'Bảng A', codePair: 'A1-A4' },
+      { id: 'NAM-18', homeTeam: '10A4', awayTeam: '10A5', time: '', status: 'scheduled', round: 'Trận 18', group: 'Bảng A', codePair: 'A2-A3' },
+      { id: 'NAM-19', homeTeam: '12A4', awayTeam: '12A3', time: '', status: 'scheduled', round: 'Trận 19', group: 'Bảng B', codePair: 'B1-B4' },
+      { id: 'NAM-20', homeTeam: '12A2', awayTeam: '10A6', time: '', status: 'scheduled', round: 'Trận 20', group: 'Bảng B', codePair: 'B2-B3' },
+      { id: 'NAM-21', homeTeam: '10A2', awayTeam: '10A1', time: '', status: 'scheduled', round: 'Trận 21', group: 'Bảng C', codePair: 'C1-C4' },
+      { id: 'NAM-22', homeTeam: '10A3', awayTeam: '11A1', time: '', status: 'scheduled', round: 'Trận 22', group: 'Bảng C', codePair: 'C2-C3' },
+      { id: 'NAM-23', homeTeam: '12A1', awayTeam: '10A7', time: '', status: 'scheduled', round: 'Trận 23', group: 'Bảng D', codePair: 'D1-D4' },
+      { id: 'NAM-24', homeTeam: '11A4', awayTeam: '12A5', time: '', status: 'scheduled', round: 'Trận 24', group: 'Bảng D', codePair: 'D2-D3' },
+      { id: 'NAM-25', homeTeam: 'Nhất A', awayTeam: 'Nhì C', time: '', status: 'scheduled', round: 'Trận 25 (TK1)', codePair: 'TK1' },
+      { id: 'NAM-26', homeTeam: 'Nhất D', awayTeam: 'Nhì B', time: '', status: 'scheduled', round: 'Trận 26 (TK2)', codePair: 'TK2' },
+      { id: 'NAM-27', homeTeam: 'Nhất B', awayTeam: 'Nhì D', time: '', status: 'scheduled', round: 'Trận 27 (TK3)', codePair: 'TK3' },
+      { id: 'NAM-28', homeTeam: 'Nhất C', awayTeam: 'Nhì A', time: '', status: 'scheduled', round: 'Trận 28 (TK4)', codePair: 'TK4' },
+      { id: 'NAM-29', homeTeam: 'TK1', awayTeam: 'TK2', time: '', status: 'scheduled', round: 'Trận 29 (BK1)', codePair: 'BK1' },
+      { id: 'NAM-30', homeTeam: 'TK3', awayTeam: 'TK4', time: '', status: 'scheduled', round: 'Trận 30 (BK2)', codePair: 'BK2' },
+      { id: 'NAM-31', homeTeam: 'BK1', awayTeam: 'BK2', time: '', status: 'scheduled', round: 'Trận 31 (CK)', codePair: 'CK' }
     ]
   },
   nu: {
     name: "BĐ Nữ",
     matches: [
-      { id: 'NU1', homeTeam: 'Phân hiệu 1', awayTeam: '11A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
-      { id: 'NU2', homeTeam: '12A3', awayTeam: '10A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng B' },
-      { id: 'NU3', homeTeam: '11A5', awayTeam: '10A3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng C' },
-      { id: 'NU4', homeTeam: 'Phân hiệu 1', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng A' },
-      { id: 'NU5', homeTeam: '12A3', awayTeam: '12A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng B' },
-      { id: 'NU6', homeTeam: '11A5', awayTeam: 'Phân hiệu 2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng C' },
-      { id: 'NU7', homeTeam: '11A1', awayTeam: '12A5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng A' },
-      { id: 'NU8', homeTeam: '10A1', awayTeam: '12A1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng B' },
-      { id: 'NU9', homeTeam: '10A3', awayTeam: 'Phân hiệu 2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng C' },
-      { id: 'NU10', homeTeam: 'Nhất A', awayTeam: 'Nhì số 1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10 (BK1)' },
-      { id: 'NU11', homeTeam: 'Nhất B', awayTeam: 'Nhất C', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11 (BK2)' },
-      { id: 'NU12', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12 (CK)' }
+      { id: 'NU-1', homeTeam: 'Phân hiệu 1', awayTeam: '11A1', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'NU-2', homeTeam: '12A3', awayTeam: '10A1', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng B', codePair: 'B1-B2' },
+      { id: 'NU-3', homeTeam: '11A5', awayTeam: '10A3', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng C', codePair: 'C1-C2' },
+      { id: 'NU-4', homeTeam: 'Phân hiệu 1', awayTeam: '12A5', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng A', codePair: 'A1-A3' },
+      { id: 'NU-5', homeTeam: '12A3', awayTeam: '12A1', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng B', codePair: 'B1-B3' },
+      { id: 'NU-6', homeTeam: '11A5', awayTeam: 'Phân hiệu 2', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng C', codePair: 'C1-C3' },
+      { id: 'NU-7', homeTeam: '11A1', awayTeam: '12A5', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng A', codePair: 'A2-A3' },
+      { id: 'NU-8', homeTeam: '10A1', awayTeam: '12A1', time: '', status: 'scheduled', round: 'Trận 8', group: 'Bảng B', codePair: 'B2-B3' },
+      { id: 'NU-9', homeTeam: '10A3', awayTeam: 'Phân hiệu 2', time: '', status: 'scheduled', round: 'Trận 9', group: 'Bảng C', codePair: 'C2-C3' },
+      { id: 'NU-10', homeTeam: 'Nhất A', awayTeam: 'Nhì số 1', time: '', status: 'scheduled', round: 'Trận 10 (BK1)', codePair: 'BK1' },
+      { id: 'NU-11', homeTeam: 'Nhất B', awayTeam: 'Nhất C', time: '', status: 'scheduled', round: 'Trận 11 (BK2)', codePair: 'BK2' },
+      { id: 'NU-12', homeTeam: 'BK1', awayTeam: 'BK2', time: '', status: 'scheduled', round: 'Trận 12 (CK)', codePair: 'CK' }
     ]
   },
   khoi89: {
     name: "BĐ Khối 8-9",
     matches: [
-      { id: 'K89-1', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 9/8', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
-      { id: 'K89-2', homeTeam: 'Lớp 8/1', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
-      { id: 'K89-3', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng B' },
-      { id: 'K89-4', homeTeam: 'Lớp 9/3', awayTeam: 'Lớp 9/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng B' },
-      { id: 'K89-5', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/9', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng C' },
-      { id: 'K89-6', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng A' },
-      { id: 'K89-7', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng A' },
-      { id: 'K89-8', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng B' },
-      { id: 'K89-9', homeTeam: 'Lớp 9/1', awayTeam: 'Lớp 9/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng B' },
-      { id: 'K89-10', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10', group: 'Bảng C' },
-      { id: 'K89-11', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11', group: 'Bảng A' },
-      { id: 'K89-12', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12', group: 'Bảng A' },
-      { id: 'K89-13', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 13', group: 'Bảng B' },
-      { id: 'K89-14', homeTeam: 'Lớp 9/1', awayTeam: 'Lớp 9/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 14', group: 'Bảng B' },
-      { id: 'K89-15', homeTeam: 'Lớp 9/9', awayTeam: 'Lớp 9/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 15', group: 'Bảng C' },
-      { id: 'K89-16', homeTeam: 'Nhất A', awayTeam: 'Nhất B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 16 (BK1)' },
-      { id: 'K89-17', homeTeam: 'Nhất C', awayTeam: 'Nhì AB', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 17 (BK2)' },
-      { id: 'K89-18', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 18 (CK)' }
+      { id: 'K89-1', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 9/8', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'K89-2', homeTeam: 'Lớp 8/1', awayTeam: 'Lớp 8/3', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
+      { id: 'K89-3', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/1', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng B', codePair: 'B1-B2' },
+      { id: 'K89-4', homeTeam: 'Lớp 9/3', awayTeam: 'Lớp 9/2', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng B', codePair: 'B3-B4' },
+      { id: 'K89-5', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/9', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng C', codePair: 'C1-C2' },
+      { id: 'K89-6', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/1', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng A', codePair: 'A1-A3' },
+      { id: 'K89-7', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/3', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng A', codePair: 'A2-A4' },
+      { id: 'K89-8', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/3', time: '', status: 'scheduled', round: 'Trận 8', group: 'Bảng B', codePair: 'B1-B3' },
+      { id: 'K89-9', homeTeam: 'Lớp 9/1', awayTeam: 'Lớp 9/2', time: '', status: 'scheduled', round: 'Trận 9', group: 'Bảng B', codePair: 'B2-B4' },
+      { id: 'K89-10', homeTeam: 'Lớp 9/6', awayTeam: 'Lớp 9/4', time: '', status: 'scheduled', round: 'Trận 10', group: 'Bảng C', codePair: 'C1-C3' },
+      { id: 'K89-11', homeTeam: 'Lớp 8/2', awayTeam: 'Lớp 8/3', time: '', status: 'scheduled', round: 'Trận 11', group: 'Bảng A', codePair: 'A1-A4' },
+      { id: 'K89-12', homeTeam: 'Lớp 9/8', awayTeam: 'Lớp 8/1', time: '', status: 'scheduled', round: 'Trận 12', group: 'Bảng A', codePair: 'A2-A3' },
+      { id: 'K89-13', homeTeam: 'Lớp 9/7', awayTeam: 'Lớp 9/2', time: '', status: 'scheduled', round: 'Trận 13', group: 'Bảng B', codePair: 'B1-B4' },
+      { id: 'K89-14', homeTeam: 'Lớp 9/1', awayTeam: 'Lớp 9/3', time: '', status: 'scheduled', round: 'Trận 14', group: 'Bảng B', codePair: 'B2-B3' },
+      { id: 'K89-15', homeTeam: 'Lớp 9/9', awayTeam: 'Lớp 9/4', time: '', status: 'scheduled', round: 'Trận 15', group: 'Bảng C', codePair: 'C2-C3' },
+      { id: 'K89-16', homeTeam: 'Nhất A', awayTeam: 'Nhất B', time: '', status: 'scheduled', round: 'Trận 16 (BK1)', codePair: 'BK1' },
+      { id: 'K89-17', homeTeam: 'Nhất C', awayTeam: 'Nhì AB', time: '', status: 'scheduled', round: 'Trận 17 (BK2)', codePair: 'BK2' },
+      { id: 'K89-18', homeTeam: 'BK1', awayTeam: 'BK2', time: '', status: 'scheduled', round: 'Trận 18 (CK)', codePair: 'CK' }
     ]
   },
   khoi67: {
     name: "BĐ Khối 6-7",
     matches: [
-      { id: 'K67-1', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 1', group: 'Bảng A' },
-      { id: 'K67-2', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 2', group: 'Bảng A' },
-      { id: 'K67-3', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 3', group: 'Bảng A' },
-      { id: 'K67-4', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 7/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 4', group: 'Bảng A' },
-      { id: 'K67-5', homeTeam: 'Lớp 6/4', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 5', group: 'Bảng A' },
-      { id: 'K67-6', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 6', group: 'Bảng A' },
-      { id: 'K67-7', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 7', group: 'Bảng A' },
-      { id: 'K67-8', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 8', group: 'Bảng A' },
-      { id: 'K67-9', homeTeam: 'Lớp 6/1', awayTeam: 'Lớp 6/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 9', group: 'Bảng B' },
-      { id: 'K67-10', homeTeam: 'Lớp 6/3', awayTeam: 'Lớp 7/2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 10', group: 'Bảng C' },
-      { id: 'K67-11', homeTeam: 'Lớp 6/1', awayTeam: 'Lớp 7/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 11', group: 'Bảng B' },
-      { id: 'K67-12', homeTeam: 'Lớp 6/3', awayTeam: 'Lớp 7/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 12', group: 'Bảng C' },
-      { id: 'K67-13', homeTeam: 'Lớp 6/2', awayTeam: 'Lớp 7/1', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 13', group: 'Bảng B' },
-      { id: 'K67-14', homeTeam: 'Lớp 7/2', awayTeam: 'Lớp 7/3', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 14', group: 'Bảng C' },
-      { id: 'K67-15', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/4', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 15', group: 'Bảng A' },
-      { id: 'K67-16', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/5', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 16', group: 'Bảng A' },
-      { id: 'K67-17', homeTeam: 'Nhất A', awayTeam: 'Nhất B', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 17 (BK1)' },
-      { id: 'K67-18', homeTeam: 'Nhì A', awayTeam: 'Nhất C', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 18 (BK2)' },
-      { id: 'K67-19', homeTeam: 'Thắng BK1', awayTeam: 'Thắng BK2', time: 'Chưa xếp giờ', status: 'scheduled', round: 'Trận 19 (CK)' }
+      { id: 'K67-1', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/4', time: '', status: 'scheduled', round: 'Trận 1', group: 'Bảng A', codePair: 'A1-A2' },
+      { id: 'K67-2', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/4', time: '', status: 'scheduled', round: 'Trận 2', group: 'Bảng A', codePair: 'A3-A4' },
+      { id: 'K67-3', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/5', time: '', status: 'scheduled', round: 'Trận 3', group: 'Bảng A', codePair: 'A1-A5' },
+      { id: 'K67-4', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 7/5', time: '', status: 'scheduled', round: 'Trận 4', group: 'Bảng A', codePair: 'A2-A3' },
+      { id: 'K67-5', homeTeam: 'Lớp 6/4', awayTeam: 'Lớp 6/5', time: '', status: 'scheduled', round: 'Trận 5', group: 'Bảng A', codePair: 'A4-A5' },
+      { id: 'K67-6', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 7/5', time: '', status: 'scheduled', round: 'Trận 6', group: 'Bảng A', codePair: 'A1-A3' },
+      { id: 'K67-7', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/4', time: '', status: 'scheduled', round: 'Trận 7', group: 'Bảng A', codePair: 'A2-A4' },
+      { id: 'K67-8', homeTeam: 'Lớp 7/5', awayTeam: 'Lớp 6/5', time: '', status: 'scheduled', round: 'Trận 8', group: 'Bảng A', codePair: 'A3-A5' },
+      { id: 'K67-9', homeTeam: 'Lớp 6/1', awayTeam: 'Lớp 6/2', time: '', status: 'scheduled', round: 'Trận 9', group: 'Bảng B', codePair: 'B1-B2' },
+      { id: 'K67-10', homeTeam: 'Lớp 6/3', awayTeam: 'Lớp 7/2', time: '', status: 'scheduled', round: 'Trận 10', group: 'Bảng C', codePair: 'C1-C2' },
+      { id: 'K67-11', homeTeam: 'Lớp 6/1', awayTeam: 'Lớp 7/1', time: '', status: 'scheduled', round: 'Trận 11', group: 'Bảng B', codePair: 'B1-B3' },
+      { id: 'K67-12', homeTeam: 'Lớp 6/3', awayTeam: 'Lớp 7/3', time: '', status: 'scheduled', round: 'Trận 12', group: 'Bảng C', codePair: 'C1-C3' },
+      { id: 'K67-13', homeTeam: 'Lớp 6/2', awayTeam: 'Lớp 7/1', time: '', status: 'scheduled', round: 'Trận 13', group: 'Bảng B', codePair: 'B2-B3' },
+      { id: 'K67-14', homeTeam: 'Lớp 7/2', awayTeam: 'Lớp 7/3', time: '', status: 'scheduled', round: 'Trận 14', group: 'Bảng C', codePair: 'C2-C3' },
+      { id: 'K67-15', homeTeam: 'Lớp 7/6', awayTeam: 'Lớp 6/4', time: '', status: 'scheduled', round: 'Trận 15', group: 'Bảng A', codePair: 'A1-A4' },
+      { id: 'K67-16', homeTeam: 'Lớp 7/4', awayTeam: 'Lớp 6/5', time: '', status: 'scheduled', round: 'Trận 16', group: 'Bảng A', codePair: 'A2-A5' },
+      { id: 'K67-17', homeTeam: 'Nhất A', awayTeam: 'Nhất B', time: '', status: 'scheduled', round: 'Trận 17 (BK1)', codePair: 'BK1' },
+      { id: 'K67-18', homeTeam: 'Nhì A', awayTeam: 'Nhất C', time: '', status: 'scheduled', round: 'Trận 18 (BK2)', codePair: 'BK2' },
+      { id: 'K67-19', homeTeam: 'BK1', awayTeam: 'BK2', time: '', status: 'scheduled', round: 'Trận 19 (CK)', codePair: 'CK' }
     ]
   }
 };
@@ -169,31 +172,16 @@ export default function App() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
 
-  // Lưu trữ dữ liệu trong bộ nhớ thiết bị
-  const [tournamentData, setTournamentData] = useState(() => {
-    try {
-      const saved = localStorage.getItem('giai_bong_da_data_v2026');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_DATA;
-  });
+  const [tournamentData, setTournamentData] = useState(INITIAL_DATA);
 
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingTimeMatch, setEditingTimeMatch] = useState<Match | null>(null);
 
-  // Kiểm tra quyền chỉnh sửa ở nội dung hiện tại
+  // Kiểm tra quyền sửa theo tài khoản
   const canEditCurrentDiv = useMemo(() => {
     if (!currentUser || !ACCOUNTS[currentUser]) return false;
     return ACCOUNTS[currentUser].allowedDivs.includes(currentDiv);
   }, [currentUser, currentDiv]);
-
-  // Lưu dữ liệu mỗi khi cập nhật
-  const saveData = (newData: typeof INITIAL_DATA) => {
-    setTournamentData(newData);
-    localStorage.setItem('giai_bong_da_data_v2026', JSON.stringify(newData));
-  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,12 +213,10 @@ export default function App() {
       return m;
     });
 
-    const newData = {
+    setTournamentData({
       ...tournamentData,
       [currentDiv]: { ...divData, matches: updatedMatches }
-    };
-
-    saveData(newData);
+    });
     setEditingScoreMatch(null);
   };
 
@@ -238,12 +224,10 @@ export default function App() {
     const divData = tournamentData[currentDiv];
     const updatedMatches = divData.matches.map((m) => (m.id === matchId ? { ...m, time: newTime } : m));
 
-    const newData = {
+    setTournamentData({
       ...tournamentData,
       [currentDiv]: { ...divData, matches: updatedMatches }
-    };
-
-    saveData(newData);
+    });
     setEditingTimeMatch(null);
   };
 
@@ -307,21 +291,39 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16 font-sans">
-      {/* HEADER */}
+      {/* HEADER TỔNG CÓ LOGO VÀ TIÊU ĐỀ MỚI */}
       <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg md:text-xl font-black tracking-wide uppercase flex items-center gap-2">
-              <span>⚽</span> GIẢI BÓNG ĐÁ HỌC ĐƯỜNG
-            </h1>
-            <p className="text-xs text-emerald-200">Cập nhật kết quả & Lịch thi đấu trực tiếp</p>
+        <div className="max-w-4xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
+          
+          <div className="flex items-center gap-2.5">
+            {/* LOGO TRƯỜNG */}
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white p-0.5 shadow-md flex-shrink-0 flex items-center justify-center">
+              <img 
+                src="Logo THCS-THPT Trần Trường Sinh 2026.png" 
+                alt="Logo Trường" 
+                className="w-full h-full object-contain rounded-full"
+                onError={(e) => {
+                  // Hiển thị biểu tượng thay thế nếu chưa tải được file hình
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+
+            <div>
+              <h1 className="text-xs md:text-sm lg:text-base font-black tracking-tight uppercase leading-snug">
+                HỘI THAO TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH NĂM HỌC 2026-2027
+              </h1>
+              <p className="text-[10px] md:text-xs text-emerald-200">Lịch thi đấu & Kết quả Cập nhật Trực tiếp</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* KHU VỰC ĐĂNG NHẬP / TRẠNG THÁI */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {currentUser ? (
-              <div className="flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-600 text-xs font-bold text-amber-300">
+              <div className="flex items-center gap-1.5 bg-emerald-900/90 px-2.5 py-1.5 rounded-xl border border-emerald-600 text-xs font-bold text-amber-300">
                 <Unlock className="w-3.5 h-3.5" />
-                <span>{ACCOUNTS[currentUser]?.name || currentUser}</span>
+                <span className="hidden sm:inline">{ACCOUNTS[currentUser]?.name || currentUser}</span>
+                <span className="sm:hidden">{currentUser}</span>
                 <button 
                   onClick={() => setCurrentUser(null)}
                   className="ml-1 p-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg transition-colors"
@@ -333,7 +335,7 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setLoginModalOpen(true)}
-                className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-colors border border-emerald-500 shadow-sm"
+                className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-colors border border-emerald-500 shadow-xs"
               >
                 <Lock className="w-3.5 h-3.5 text-amber-300" />
                 <span>Đăng nhập</span>
@@ -368,7 +370,7 @@ export default function App() {
       {/* MAIN CONTENT */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
         
-        {/* TABS */}
+        {/* TABS CHUYỂN ĐỔI GIAO DIỆN */}
         <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
           <button
             onClick={() => setActiveTab('matches')}
@@ -407,30 +409,62 @@ export default function App() {
           </button>
         </div>
 
-        {/* 1. LỊCH THI ĐẤU & TỈ SỐ */}
+        {/* 1. LỊCH THI ĐẤU & TỈ SỐ (CẤU TRÚC HIỂN THỊ MỚI Theo YÊU CẦU) */}
         {activeTab === 'matches' && (
           <div className="space-y-3">
             {currentMatches.map((match) => (
               <div
                 key={match.id}
-                className="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-emerald-500 transition-colors flex flex-col gap-2"
+                className="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-emerald-500 transition-colors flex flex-col gap-2.5"
               >
-                <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                  <span className="font-bold text-slate-600">{match.round} {match.group ? `• ${match.group}` : ''}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">{match.time}</span>
+                {/* DÒNG TIÊU ĐỀ: BÊN TRÁI (Trận + Bảng + Mã) | BÊN PHẢI (Thời gian thi đấu) */}
+                <div className="flex items-center justify-between text-xs font-bold border-b border-slate-100 pb-2">
+                  
+                  {/* BÊN TRÁI: Trận + Bảng + Mã số cặp đấu */}
+                  <div className="flex items-center gap-1.5 text-slate-700 flex-wrap">
+                    <span className="text-emerald-800 font-extrabold">{match.round}</span>
+                    {match.group && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-slate-600">{match.group}</span>
+                      </>
+                    )}
+                    {match.codePair && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-black border border-slate-200">
+                          {match.codePair}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* BÊN PHẢI: Thời gian thi đấu */}
+                  <div className="flex items-center gap-1.5">
+                    {match.time ? (
+                      <span className="flex items-center gap-1 text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg font-extrabold">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{match.time}</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-normal italic text-[11px] bg-slate-50 px-2 py-0.5 rounded">
+                        Chưa xếp giờ
+                      </span>
+                    )}
+
                     {canEditCurrentDiv && (
                       <button
                         onClick={() => setEditingTimeMatch(match)}
-                        className="text-emerald-700 hover:underline font-bold text-[11px] bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md"
+                        className="text-emerald-700 hover:bg-emerald-100 font-extrabold text-[11px] bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-md transition-colors"
                       >
-                        Sửa giờ
+                        {match.time ? 'Sửa giờ' : '+ Thêm giờ'}
                       </button>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                {/* KHU VỰC HIỂN THỊ TỶ SỐ TRẬN ĐẤU */}
+                <div className="flex items-center justify-between py-1">
                   <div className="flex-1 text-right font-extrabold text-slate-800 text-sm md:text-base pr-3">
                     {match.homeTeam}
                   </div>
@@ -458,6 +492,7 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* NÚT CẬP NHẬT TỶ SỐ DÀNH CHO QUẢN LÝ */}
                 {canEditCurrentDiv && (
                   <div className="pt-2 border-t border-slate-100 flex justify-end">
                     <button
@@ -473,7 +508,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. BẢNG XẾP HẠNG */}
+        {/* 2. BẢNG XẾP HẠNG TỰ ĐỘNG */}
         {activeTab === 'standings' && (
           <div className="space-y-4">
             {Object.keys(groupStandings).length === 0 ? (
@@ -537,7 +572,7 @@ export default function App() {
                     </span>
                     <span>{m.awayTeam}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400 text-right">{m.time}</div>
+                  <div className="text-[10px] text-slate-400 text-right">{m.time || 'Chưa xếp giờ'}</div>
                 </div>
               ))}
             </div>
@@ -545,7 +580,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL ĐĂNG NHẬP */}
+      {/* MODAL ĐĂNG NHẬP (CÓ NÚT ẨN/HIỆN MẬT KHẨU) */}
       {loginModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100">
@@ -678,7 +713,7 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-base text-slate-800">Sửa thời gian thi đấu</h3>
+              <h3 className="font-extrabold text-base text-slate-800">Cập nhật thời gian thi đấu</h3>
               <button onClick={() => setEditingTimeMatch(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
