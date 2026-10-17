@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar, 
   BarChart2, 
@@ -6,14 +6,35 @@ import {
   Lock, 
   Unlock, 
   X, 
-  Check, 
   LogOut,
   Eye,
   EyeOff,
   Clock
 } from 'lucide-react';
 
-// 🔑 Cấu hình 3 Tài khoản & Phân quyền chuẩn
+// ---------------------------------------------------------------------------
+// 1. CẤU HÌNH FIREBASE REALTIME DATABASE (ĐÃ TÍCH HỢP MÃ CỦA ANH/CHỊ)
+// ---------------------------------------------------------------------------
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, onValue, set } from 'firebase/database';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyANwlcNVkVDj8Z5Z7A8jfGZirrWOdpUjuk",
+  authDomain: "hoithao2026-2027.firebaseapp.com",
+  databaseURL: "https://hoithao2026-2027-default-rtdb.firebaseio.com",
+  projectId: "hoithao2026-2027",
+  storageBucket: "hoithao2026-2027.firebasestorage.app",
+  messagingSenderId: "771493632",
+  appId: "1:771493632:web:687e1cb3cd88dbe081ede5",
+  measurementId: "G-3SLJLVL9ZY"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ---------------------------------------------------------------------------
+// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU
+// ---------------------------------------------------------------------------
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
     pass: "Khuon@247", 
@@ -22,13 +43,13 @@ const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string
   },
   "Phanhieu1": { 
     pass: "Thoai2026", 
-    name: "Quản Lý BĐ Khối 8-9", 
-    allowedDivs: ["khoi89"] 
+    name: "Quản Lý BĐ Khối 6-7", 
+    allowedDivs: ["khoi67"] 
   },
   "Phanhieu2": { 
     pass: "Lam2026", 
-    name: "Quản Lý BĐ Khối 6-7", 
-    allowedDivs: ["khoi67"] 
+    name: "Quản Lý BĐ Khối 8-9", 
+    allowedDivs: ["khoi89"] 
   }
 };
 
@@ -57,7 +78,6 @@ export interface TeamStanding {
   points: number;
 }
 
-// ⚽ DỮ LIỆU SẠCH TỪ EXCEL (ĐÃ XÓA TOÀN BỘ GIỜ CŨ & BỔ SUNG MÃ SỐ CẶP ĐẤU)
 const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   nam: {
     name: "BĐ Nam",
@@ -161,6 +181,9 @@ const INITIAL_DATA: Record<string, { name: string; matches: Match[] }> = {
   }
 };
 
+// ---------------------------------------------------------------------------
+// 3. MAIN COMPONENT (GIAO DIỆN CHÍNH)
+// ---------------------------------------------------------------------------
 export default function App() {
   const [currentDiv, setCurrentDiv] = useState<string>('nam');
   const [activeTab, setActiveTab] = useState<'matches' | 'standings' | 'bracket'>('matches');
@@ -177,7 +200,28 @@ export default function App() {
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingTimeMatch, setEditingTimeMatch] = useState<Match | null>(null);
 
-  // Kiểm tra quyền sửa theo tài khoản
+  const [tempHomeScore, setTempHomeScore] = useState<string>('');
+  const [tempAwayScore, setTempAwayScore] = useState<string>('');
+  const [tempMatchStatus, setTempMatchStatus] = useState<Match['status']>('scheduled');
+  const [tempTime, setTempTime] = useState<string>('');
+
+  // 🔄 KẾT NỐI REALTIME DATABASE: Đồng bộ liên tục dữ liệu từ Server về Máy người dùng
+  useEffect(() => {
+    const tournamentRef = ref(db, 'tournamentData');
+    const unsubscribe = onValue(tournamentRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setTournamentData(data);
+      } else {
+        // Nếu database trống, tự động nạp dữ liệu mặc định ban đầu
+        set(ref(db, 'tournamentData'), INITIAL_DATA);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Kiểm tra quyền sửa
   const canEditCurrentDiv = useMemo(() => {
     if (!currentUser || !ACCOUNTS[currentUser]) return false;
     return ACCOUNTS[currentUser].allowedDivs.includes(currentDiv);
@@ -199,36 +243,67 @@ export default function App() {
     }
   };
 
-  const handleSaveScore = (matchId: string, homeScore?: number, awayScore?: number, status?: Match['status']) => {
+  // 💾 LƯU TỶ SỐ TRỰC TIẾP LÊN FIREBASE REALTIME
+  const handleSaveScore = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingScoreMatch) return;
+
+    const hScore = tempHomeScore !== '' ? parseInt(tempHomeScore, 10) : undefined;
+    const aScore = tempAwayScore !== '' ? parseInt(tempAwayScore, 10) : undefined;
+
     const divData = tournamentData[currentDiv];
     const updatedMatches = divData.matches.map((m) => {
-      if (m.id === matchId) {
+      if (m.id === editingScoreMatch.id) {
         return {
           ...m,
-          homeScore,
-          awayScore,
-          status: status || (homeScore !== undefined && awayScore !== undefined ? 'finished' : m.status)
+          homeScore: hScore,
+          awayScore: aScore,
+          status: tempMatchStatus
         };
       }
       return m;
     });
 
-    setTournamentData({
+    const newTournamentData = {
       ...tournamentData,
       [currentDiv]: { ...divData, matches: updatedMatches }
-    });
+    };
+
+    // Đẩy dữ liệu mới lên Firebase Server
+    set(ref(db, 'tournamentData'), newTournamentData);
     setEditingScoreMatch(null);
   };
 
-  const handleSaveTime = (matchId: string, newTime: string) => {
-    const divData = tournamentData[currentDiv];
-    const updatedMatches = divData.matches.map((m) => (m.id === matchId ? { ...m, time: newTime } : m));
+  // 💾 LƯU GIỜ THI ĐẤU TRỰC TIẾP LÊN FIREBASE REALTIME
+  const handleSaveTime = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTimeMatch) return;
 
-    setTournamentData({
+    const divData = tournamentData[currentDiv];
+    const updatedMatches = divData.matches.map((m) => 
+      m.id === editingTimeMatch.id ? { ...m, time: tempTime } : m
+    );
+
+    const newTournamentData = {
       ...tournamentData,
       [currentDiv]: { ...divData, matches: updatedMatches }
-    });
+    };
+
+    // Đẩy dữ liệu mới lên Firebase Server
+    set(ref(db, 'tournamentData'), newTournamentData);
     setEditingTimeMatch(null);
+  };
+
+  const openScoreModal = (match: Match) => {
+    setEditingScoreMatch(match);
+    setTempHomeScore(match.homeScore !== undefined ? String(match.homeScore) : '');
+    setTempAwayScore(match.awayScore !== undefined ? String(match.awayScore) : '');
+    setTempMatchStatus(match.status);
+  };
+
+  const openTimeModal = (match: Match) => {
+    setEditingTimeMatch(match);
+    setTempTime(match.time || '');
   };
 
   // Tính Bảng xếp hạng tự động
@@ -291,19 +366,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16 font-sans">
-      {/* HEADER TỔNG CÓ LOGO VÀ TIÊU ĐỀ MỚI */}
+      {/* HEADER */}
       <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
           
           <div className="flex items-center gap-2.5">
-            {/* LOGO TRƯỜNG */}
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white p-0.5 shadow-md flex-shrink-0 flex items-center justify-center">
               <img 
                 src="Logo THCS-THPT Trần Trường Sinh 2026.png" 
                 alt="Logo Trường" 
                 className="w-full h-full object-contain rounded-full"
                 onError={(e) => {
-                  // Hiển thị biểu tượng thay thế nếu chưa tải được file hình
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
@@ -317,7 +390,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* KHU VỰC ĐĂNG NHẬP / TRẠNG THÁI */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {currentUser ? (
               <div className="flex items-center gap-1.5 bg-emerald-900/90 px-2.5 py-1.5 rounded-xl border border-emerald-600 text-xs font-bold text-amber-300">
@@ -409,7 +481,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* 1. LỊCH THI ĐẤU & TỈ SỐ (CẤU TRÚC HIỂN THỊ MỚI Theo YÊU CẦU) */}
+        {/* 1. LỊCH THI ĐẤU & TỈ SỐ */}
         {activeTab === 'matches' && (
           <div className="space-y-3">
             {currentMatches.map((match) => (
@@ -417,10 +489,7 @@ export default function App() {
                 key={match.id}
                 className="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-emerald-500 transition-colors flex flex-col gap-2.5"
               >
-                {/* DÒNG TIÊU ĐỀ: BÊN TRÁI (Trận + Bảng + Mã) | BÊN PHẢI (Thời gian thi đấu) */}
                 <div className="flex items-center justify-between text-xs font-bold border-b border-slate-100 pb-2">
-                  
-                  {/* BÊN TRÁI: Trận + Bảng + Mã số cặp đấu */}
                   <div className="flex items-center gap-1.5 text-slate-700 flex-wrap">
                     <span className="text-emerald-800 font-extrabold">{match.round}</span>
                     {match.group && (
@@ -439,7 +508,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* BÊN PHẢI: Thời gian thi đấu */}
                   <div className="flex items-center gap-1.5">
                     {match.time ? (
                       <span className="flex items-center gap-1 text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg font-extrabold">
@@ -454,7 +522,7 @@ export default function App() {
 
                     {canEditCurrentDiv && (
                       <button
-                        onClick={() => setEditingTimeMatch(match)}
+                        onClick={() => openTimeModal(match)}
                         className="text-emerald-700 hover:bg-emerald-100 font-extrabold text-[11px] bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-md transition-colors"
                       >
                         {match.time ? 'Sửa giờ' : '+ Thêm giờ'}
@@ -463,7 +531,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* KHU VỰC HIỂN THỊ TỶ SỐ TRẬN ĐẤU */}
                 <div className="flex items-center justify-between py-1">
                   <div className="flex-1 text-right font-extrabold text-slate-800 text-sm md:text-base pr-3">
                     {match.homeTeam}
@@ -480,6 +547,10 @@ export default function App() {
                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 uppercase">
                         KẾT THÚC
                       </span>
+                    ) : match.status === 'live' ? (
+                      <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md mt-1 uppercase animate-pulse">
+                        TRỰC TIẾP
+                      </span>
                     ) : (
                       <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-1 uppercase">
                         SẮP ĐẤU
@@ -492,11 +563,10 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* NÚT CẬP NHẬT TỶ SỐ DÀNH CHO QUẢN LÝ */}
                 {canEditCurrentDiv && (
                   <div className="pt-2 border-t border-slate-100 flex justify-end">
                     <button
-                      onClick={() => setEditingScoreMatch(match)}
+                      onClick={() => openScoreModal(match)}
                       className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
                     >
                       <span>Cập nhật Tỉ Số</span>
@@ -530,7 +600,7 @@ export default function App() {
                           <th className="py-2.5 px-2 text-center">Tr</th>
                           <th className="py-2.5 px-2 text-center">T</th>
                           <th className="py-2.5 px-2 text-center">H</th>
-                          <th className="py-2.5 px-2 text-center">T</th>
+                          <th className="py-2.5 px-2 text-center">B</th>
                           <th className="py-2.5 px-2 text-center">HS</th>
                           <th className="py-2.5 px-3 text-center font-black text-emerald-700">Điểm</th>
                         </tr>
@@ -580,69 +650,66 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL ĐĂNG NHẬP (CÓ NÚT ẨN/HIỆN MẬT KHẨU) */}
+      {/* MODAL ĐĂNG NHẬP */}
       {loginModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-emerald-600" />
-                <span>Đăng nhập Ban Quản Lý</span>
-              </h3>
-              <button onClick={() => setLoginModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl relative">
+            <button 
+              onClick={() => setLoginModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-black text-emerald-800 mb-4 flex items-center gap-2">
+              <Lock className="w-5 h-5" /> Đăng nhập Quản trị
+            </h2>
 
-            <form onSubmit={handleLogin} className="space-y-3">
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-2.5 rounded-xl mb-4">
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Tên tài khoản:</label>
-                <input
-                  type="text"
+                <label className="block text-slate-600 mb-1">Tên tài khoản</label>
+                <input 
+                  type="text" 
                   value={inputUsername}
                   onChange={(e) => setInputUsername(e.target.value)}
-                  placeholder="Admin, Phanhieu1 hoặc Phanhieu2"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-hidden focus:border-emerald-600"
+                  placeholder="Nhập tên tài khoản..."
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu:</label>
+                <label className="block text-slate-600 mb-1">Mật khẩu</label>
                 <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
+                  <input 
+                    type={showPassword ? 'text' : 'password'} 
                     value={inputPassword}
                     onChange={(e) => setInputPassword(e.target.value)}
-                    placeholder="Mật khẩu"
-                    className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-hidden focus:border-emerald-600 pr-9"
+                    placeholder="Nhập mật khẩu..."
+                    required
                   />
-                  <button
+                  <button 
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              {loginError && <p className="text-xs text-red-500 font-medium">{loginError}</p>}
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setLoginModalOpen(false)}
-                  className="px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm"
-                >
-                  Đăng nhập
-                </button>
-              </div>
+              <button 
+                type="submit" 
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-xl transition-colors shadow-sm"
+              >
+                Đăng nhập
+              </button>
             </form>
           </div>
         </div>
@@ -651,102 +718,116 @@ export default function App() {
       {/* MODAL CẬP NHẬT TỶ SỐ */}
       {editingScoreMatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-base text-slate-800">Cập nhật tỉ số trận đấu</h3>
-              <button onClick={() => setEditingScoreMatch(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl relative">
+            <button 
+              onClick={() => setEditingScoreMatch(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-black text-slate-800 mb-4">Cập nhật Tỉ Số</h2>
 
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center font-extrabold text-emerald-800 text-sm">
-              {editingScoreMatch.homeTeam} VS {editingScoreMatch.awayTeam}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">{editingScoreMatch.homeTeam}</label>
-                <input
-                  type="number"
-                  defaultValue={editingScoreMatch.homeScore ?? 0}
-                  id="homeScoreInput"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-black text-center text-lg focus:ring-2 focus:ring-emerald-500"
-                />
+            <form onSubmit={handleSaveScore} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1 truncate">{editingScoreMatch.homeTeam}</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={tempHomeScore}
+                    onChange={(e) => setTempHomeScore(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-center text-base"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1 truncate">{editingScoreMatch.awayTeam}</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={tempAwayScore}
+                    onChange={(e) => setTempAwayScore(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-center text-base"
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">{editingScoreMatch.awayTeam}</label>
-                <input
-                  type="number"
-                  defaultValue={editingScoreMatch.awayScore ?? 0}
-                  id="awayScoreInput"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-black text-center text-lg focus:ring-2 focus:ring-emerald-500"
-                />
+                <label className="block text-xs font-bold text-slate-600 mb-1">Trạng thái trận đấu</label>
+                <select 
+                  value={tempMatchStatus}
+                  onChange={(e) => setTempMatchStatus(e.target.value as Match['status'])}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"
+                >
+                  <option value="scheduled">Sắp đấu</option>
+                  <option value="live">Đang diễn ra</option>
+                  <option value="finished">Kết thúc</option>
+                </select>
               </div>
-            </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setEditingScoreMatch(null)}
-                className="px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  const h = Number((document.getElementById('homeScoreInput') as HTMLInputElement).value);
-                  const a = Number((document.getElementById('awayScoreInput') as HTMLInputElement).value);
-                  handleSaveScore(editingScoreMatch.id, h, a, 'finished');
-                }}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1"
-              >
-                <Check className="w-4 h-4" />
-                <span>Lưu Tỉ Số</span>
-              </button>
-            </div>
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingScoreMatch(null)}
+                  className="flex-1 py-2 bg-slate-100 text-slate-600 font-extrabold text-xs rounded-xl hover:bg-slate-200"
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-2 bg-emerald-600 text-white font-extrabold text-xs rounded-xl hover:bg-emerald-700 shadow-sm"
+                >
+                  Lưu
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* MODAL SỬA GIỜ THI ĐẤU */}
+      {/* MODAL CẬP NHẬT THỜI GIAN */}
       {editingTimeMatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-base text-slate-800">Cập nhật thời gian thi đấu</h3>
-              <button onClick={() => setEditingTimeMatch(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl relative">
+            <button 
+              onClick={() => setEditingTimeMatch(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-black text-slate-800 mb-1">Xếp Giờ Thi Đấu</h2>
+            <p className="text-xs text-slate-500 mb-4">{editingTimeMatch.round} - {editingTimeMatch.homeTeam} vs {editingTimeMatch.awayTeam}</p>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Thời gian thi đấu (Ví dụ: 7h30, Thứ 6, 17/10):</label>
-              <input
-                type="text"
-                defaultValue={editingTimeMatch.time}
-                id="matchTimeInput"
-                placeholder="7h30, Thứ 6, 17/10"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-sm focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
+            <form onSubmit={handleSaveTime} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Thời gian (VD: 07:30 15/10)</label>
+                <input 
+                  type="text" 
+                  value={tempTime}
+                  onChange={(e) => setTempTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"
+                  placeholder="Nhập giờ thi đấu..."
+                  required
+                />
+              </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setEditingTimeMatch(null)}
-                className="px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  const val = (document.getElementById('matchTimeInput') as HTMLInputElement).value;
-                  handleSaveTime(editingTimeMatch.id, val);
-                }}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm"
-              >
-                Lưu Thời Gian
-              </button>
-            </div>
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingTimeMatch(null)}
+                  className="flex-1 py-2 bg-slate-100 text-slate-600 font-extrabold text-xs rounded-xl hover:bg-slate-200"
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-2 bg-emerald-600 text-white font-extrabold text-xs rounded-xl hover:bg-emerald-700 shadow-sm"
+                >
+                  Lưu Giờ
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
