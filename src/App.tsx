@@ -8,15 +8,11 @@ import {
   X, 
   Check, 
   LogOut,
-  RefreshCw,
   Eye,
   EyeOff
 } from 'lucide-react';
 
-// 🔗 Link API Google Apps Script đồng bộ thời gian thực
-const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbwaevxVit54JZSzYYIkJWzn0-BIKJ-mNSkQbJ4NNXrk5CJt-vgdGOXAc7u4fS0ZIJ--Ug/exec";
-
-// 🔑 Cấu hình 3 Tài khoản và Phạm vi phân quyền tương ứng
+// 🔑 Cấu hình 3 Tài khoản & Phân quyền trực tiếp trong hệ thống
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
     pass: "Khuon@247", 
@@ -173,52 +169,30 @@ export default function App() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
 
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [tournamentData, setTournamentData] = useState(INITIAL_DATA);
+  // Lưu trữ dữ liệu trong bộ nhớ thiết bị
+  const [tournamentData, setTournamentData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('giai_bong_da_data_v2026');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return INITIAL_DATA;
+  });
 
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingTimeMatch, setEditingTimeMatch] = useState<Match | null>(null);
 
-  // Kiểm tra tài khoản hiện tại có quyền chỉnh sửa ở Bảng đấu đang chọn hay không
+  // Kiểm tra quyền chỉnh sửa ở nội dung hiện tại
   const canEditCurrentDiv = useMemo(() => {
     if (!currentUser || !ACCOUNTS[currentUser]) return false;
     return ACCOUNTS[currentUser].allowedDivs.includes(currentDiv);
   }, [currentUser, currentDiv]);
 
-  // Đồng bộ Cloud Realtime từ Google Sheet
-  const fetchCloudData = () => {
-    setIsSyncing(true);
-    fetch(CLOUD_API_URL)
-      .then((res) => res.json())
-      .then((data) => {
-        setIsSyncing(false);
-        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-          setTournamentData(data);
-        }
-      })
-      .catch((err) => {
-        setIsSyncing(false);
-        console.error("Lỗi đồng bộ Cloud:", err);
-      });
-  };
-
-  useEffect(() => {
-    fetchCloudData();
-    const interval = setInterval(fetchCloudData, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const saveToCloud = (newData: typeof INITIAL_DATA) => {
+  // Lưu dữ liệu mỗi khi cập nhật
+  const saveData = (newData: typeof INITIAL_DATA) => {
     setTournamentData(newData);
-    setIsSyncing(true);
-    fetch(CLOUD_API_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newData),
-    }).then(() => {
-      setTimeout(fetchCloudData, 800);
-    });
+    localStorage.setItem('giai_bong_da_data_v2026', JSON.stringify(newData));
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -256,7 +230,7 @@ export default function App() {
       [currentDiv]: { ...divData, matches: updatedMatches }
     };
 
-    saveToCloud(newData);
+    saveData(newData);
     setEditingScoreMatch(null);
   };
 
@@ -269,10 +243,11 @@ export default function App() {
       [currentDiv]: { ...divData, matches: updatedMatches }
     };
 
-    saveToCloud(newData);
+    saveData(newData);
     setEditingTimeMatch(null);
   };
 
+  // Tính Bảng xếp hạng tự động
   const groupStandings = useMemo(() => {
     const matches: Match[] = tournamentData[currentDiv]?.matches || [];
     const groups: Record<string, Record<string, TeamStanding>> = {};
@@ -332,7 +307,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16 font-sans">
-      {/* HEADER TỔNG */}
+      {/* HEADER */}
       <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
@@ -343,14 +318,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button 
-              onClick={fetchCloudData}
-              className="p-1.5 bg-emerald-700 hover:bg-emerald-600 rounded-xl transition-colors text-white"
-              title="Cập nhật dữ liệu mới"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-300' : ''}`} />
-            </button>
-
             {currentUser ? (
               <div className="flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-600 text-xs font-bold text-amber-300">
                 <Unlock className="w-3.5 h-3.5" />
@@ -376,7 +343,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* THANH CHỌN 4 NỘI DUNG */}
+      {/* CHỌN NỘI DUNG */}
       <nav className="bg-white border-b border-slate-200 sticky top-[57px] z-10 shadow-xs">
         <div className="max-w-4xl mx-auto px-2 flex gap-1 overflow-x-auto py-2 justify-start sm:justify-center scrollbar-none">
           {Object.keys(INITIAL_DATA).map((key) => {
@@ -398,10 +365,10 @@ export default function App() {
         </div>
       </nav>
 
-      {/* NỘI DUNG CHÍNH */}
+      {/* MAIN CONTENT */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
         
-        {/* TAB CHUYỂN ĐỔI CHẾ ĐỘ XEM */}
+        {/* TABS */}
         <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
           <button
             onClick={() => setActiveTab('matches')}
@@ -440,7 +407,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* 1. XEM LỊCH THI ĐẤU & TỈ SỐ */}
+        {/* 1. LỊCH THI ĐẤU & TỈ SỐ */}
         {activeTab === 'matches' && (
           <div className="space-y-3">
             {currentMatches.map((match) => (
@@ -506,7 +473,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. XEM BẢNG XẾP HẠNG TỰ ĐỘNG */}
+        {/* 2. BẢNG XẾP HẠNG */}
         {activeTab === 'standings' && (
           <div className="space-y-4">
             {Object.keys(groupStandings).length === 0 ? (
@@ -555,7 +522,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. XEM NHÁNH ĐẤU KNOCKOUT */}
+        {/* 3. NHÁNH ĐẤU KNOCKOUT */}
         {activeTab === 'bracket' && (
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider">Sơ đồ thi đấu Knockout</h3>
@@ -578,7 +545,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL ĐĂNG NHẬP (CÓ NÚT ẨN/HIỆN MẬT KHẨU) */}
+      {/* MODAL ĐĂNG NHẬP */}
       {loginModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-100">
