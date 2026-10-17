@@ -1,671 +1,149 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { DivisionId, Match, TournamentStore, DivisionRankings, DivisionData } from './types';
-import { initialTournamentData } from './data/initialData';
-import { Header } from './components/Header';
-import { DivisionTabs } from './components/DivisionTabs';
-import { MatchesView } from './components/MatchesView';
-import { StandingsView } from './components/StandingsView';
-import { BracketView } from './components/BracketView';
-import { PodiumView } from './components/PodiumView';
-import { ScoreEntryModal } from './components/ScoreEntryModal';
-import { EditMatchModal } from './components/EditMatchModal';
-import { TeamManagerModal } from './components/TeamManagerModal';
-import { CsvImportModal } from './components/CsvImportModal';
-import { ScheduleManagerModal } from './components/ScheduleManagerModal';
-import { LoginModal } from './components/LoginModal';
-import { BtcToolbar } from './components/BtcToolbar';
-import {
-  auth,
-  testConnection,
-  subscribeTournament,
-  syncTournamentToFirestore,
-  isAuthorizedEmail,
-} from './firebase';
-import {
-  Calendar,
-  BarChart2,
-  GitFork,
-  Trophy,
-  MapPin,
-  Flame,
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
-const STORAGE_KEY = 'bong_da_tournament_data_v16';
+// Link API Google Apps Script đã tích hợp trực tiếp
+const API_URL = "https://script.google.com/macros/s/AKfycbwaevxVit54JZSzYYIkJWzn0-BIKJ-mNSkQbJ4NNXrk5CJt-vgdGOXAc7u4fS0ZIJ--Ug/exec";
 
-function ensureUpToDateTournamentStructure(data: TournamentStore): TournamentStore {
-  if (!data || !data.divisions) return initialTournamentData;
+const TABS = ["BĐ Nam", "BĐ Nữ", "BĐ Khối 8-9", "BĐ Khối 6-7"];
 
-  const defaultDivisions = initialTournamentData.divisions;
-  const migratedDivisions = { ...data.divisions };
-
-  (Object.keys(defaultDivisions) as DivisionId[]).forEach((divId) => {
-    const defaultDiv = defaultDivisions[divId];
-    const currentDiv = migratedDivisions[divId];
-    if (!currentDiv || !currentDiv.matches) {
-      migratedDivisions[divId] = defaultDiv;
-      return;
-    }
-
-    const existingMatchesMap = new Map<string, Match>();
-    currentDiv.matches.forEach((m) => existingMatchesMap.set(m.id, m));
-
-    const updatedMatches = defaultDiv.matches.map((templateMatch) => {
-      const existing = existingMatchesMap.get(templateMatch.id);
-      if (!existing) return templateMatch;
-
-      return {
-        ...templateMatch,
-        homeScore: existing.homeScore !== undefined ? existing.homeScore : templateMatch.homeScore,
-        awayScore: existing.awayScore !== undefined ? existing.awayScore : templateMatch.awayScore,
-        status: existing.status || templateMatch.status,
-        hasPenalty: existing.hasPenalty,
-        homePen: existing.homePen,
-        awayPen: existing.awayPen,
-        winnerTeam: existing.winnerTeam,
-        time: existing.time || templateMatch.time,
-        matchMinute: existing.matchMinute || templateMatch.matchMinute,
-        pitch: templateMatch.pitch,
-        note: existing.note,
-        pairCode: templateMatch.pairCode,
-        homeTeam: existing.homeTeam || templateMatch.homeTeam,
-        awayTeam: existing.awayTeam || templateMatch.awayTeam,
-      };
-    });
-
-    migratedDivisions[divId] = {
-      ...currentDiv,
-      division: defaultDiv.division,
-      groups: defaultDiv.groups,
-      teams: defaultDiv.teams,
-      matches: updatedMatches,
-    };
-  });
-
-  return { divisions: migratedDivisions };
+interface MatchData {
+  [key: string]: string;
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>("BĐ Nam");
+  const [matches, setMatches] = useState<MatchData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
-  const [store, setStore] = useState<TournamentStore>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return ensureUpToDateTournamentStructure(JSON.parse(saved));
+  // Hàm đọc dữ liệu cột linh hoạt theo tên tiêu đề trên Google Sheet
+  const getValue = (obj: MatchData, keys: string[]) => {
+    for (let k of keys) {
+      for (let prop in obj) {
+        if (prop.toLowerCase().trim() === k.toLowerCase().trim()) {
+          return obj[prop];
+        }
       }
-    } catch {
-      // ignore
     }
-    return initialTournamentData;
-  });
-
-  const [currentDivisionId, setCurrentDivisionId] = useState<DivisionId>('nam');
-  const [activeTab, setActiveTab] = useState<'matches' | 'standings' | 'bracket' | 'podium'>('matches');
-  const [isBtcMode, setIsBtcMode] = useState<boolean>(false);
-
-  const isUserAuthorized = useMemo(() => {
-    return currentUser ? isAuthorizedEmail(currentUser.email) : false;
-  }, [currentUser]);
-
-  const canEdit = isBtcMode && isUserAuthorized;
-
-  const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
-  const [editingDetailsMatch, setEditingDetailsMatch] = useState<Match | null>(null);
-  const [isTeamManagerOpen, setIsTeamManagerOpen] = useState<boolean>(false);
-  const [isCsvImportOpen, setIsCsvImportOpen] = useState<boolean>(false);
-  const [isScheduleManagerOpen, setIsScheduleManagerOpen] = useState<boolean>(false);
+    return "";
+  };
 
   useEffect(() => {
-    testConnection();
+    setLoading(true);
+    setError("");
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setIsAuthReady(true);
-      if (user && isAuthorizedEmail(user.email)) {
-        setIsBtcMode(true);
-      } else {
-        setIsBtcMode(false);
-      }
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribeDoc = subscribeTournament((remoteData) => {
-      if (remoteData && remoteData.divisions) {
-        const upgraded = ensureUpToDateTournamentStructure(remoteData);
-        setStore(upgraded);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(upgraded));
-        } catch {
-          // ignore
+    fetch(`${API_URL}?sheet=${encodeURIComponent(activeTab)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setLoading(false);
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setMatches(data);
         }
-      }
-    });
-
-    return () => {
-      if (unsubscribeDoc) unsubscribeDoc();
-    };
-  }, []);
-
-  const requireBtcLogin = (action: () => void) => {
-    if (currentUser && isAuthorizedEmail(currentUser.email)) {
-      action();
-    } else {
-      setIsLoginModalOpen(true);
-    }
-  };
-
-  // Hàm lưu đồng bộ trực tiếp
-  const persistAndSync = (newStore: TournamentStore) => {
-    // 1. Lưu ngay vào bộ nhớ máy tính/điện thoại
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
-    } catch (e) {
-      console.error('LocalStorage save failed', e);
-    }
-
-    // 2. Cập nhật State giao diện
-    setStore(newStore);
-
-    // 3. Đồng bộ lên Firebase (nếu đã đăng nhập Admin)
-    if (currentUser && isAuthorizedEmail(currentUser.email)) {
-      syncTournamentToFirestore(newStore, currentUser).catch((err) => {
-        console.warn('Sync to firestore error:', err);
+      })
+      .catch(() => {
+        setLoading(false);
+        setError("Không thể kết nối đến dữ liệu. Vui lòng kiểm tra lại cấu hình Google Apps Script.");
       });
-    }
-  };
-
-  const currentData = store.divisions[currentDivisionId];
-
-  const matchesCountSummary = useMemo(() => {
-    const summary: Record<DivisionId, { total: number; finished: number; live: number }> = {
-      nam: { total: 0, finished: 0, live: 0 },
-      nu: { total: 0, finished: 0, live: 0 },
-      khoi89: { total: 0, finished: 0, live: 0 },
-      khoi67: { total: 0, finished: 0, live: 0 },
-    };
-
-    (Object.keys(store.divisions) as DivisionId[]).forEach((id) => {
-      const d = store.divisions[id];
-      if (d && d.matches) {
-        summary[id] = {
-          total: d.matches.length,
-          finished: d.matches.filter((m) => m.status === 'finished').length,
-          live: d.matches.filter((m) => m.status === 'in_progress' || m.status === 'live').length,
-        };
-      }
-    });
-
-    return summary;
-  }, [store]);
-
-  const divisionsInfo = useMemo(() => {
-    const map: Record<DivisionId, any> = {
-      nam: store.divisions.nam.division,
-      nu: store.divisions.nu.division,
-      khoi89: store.divisions.khoi89.division,
-      khoi67: store.divisions.khoi67.division,
-    };
-    return map;
-  }, [store]);
-
-  const handleSaveScore = (updatedMatch: Match) => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    const division = store.divisions[currentDivisionId];
-    const updatedMatches = division.matches.map((m) =>
-      m.id === updatedMatch.id ? updatedMatch : m
-    );
-
-    let updatedRankings = { ...division.rankings };
-    if (updatedMatch.round === 'final' && updatedMatch.status === 'finished' && updatedMatch.winnerTeam) {
-      const champ = updatedMatch.winnerTeam;
-      const runner = champ === updatedMatch.homeTeam ? updatedMatch.awayTeam : updatedMatch.homeTeam;
-      updatedRankings = {
-        ...updatedRankings,
-        champion: champ,
-        runnerUp: runner,
-      };
-    }
-
-    const newStore: TournamentStore = {
-      ...store,
-      divisions: {
-        ...store.divisions,
-        [currentDivisionId]: {
-          ...division,
-          matches: updatedMatches,
-          rankings: updatedRankings,
-        },
-      },
-    };
-
-    persistAndSync(newStore);
-  };
-
-  const handleSaveMatchDetails = (updatedMatch: Match) => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    const division = store.divisions[currentDivisionId];
-    const updatedMatches = division.matches.map((m) =>
-      m.id === updatedMatch.id ? updatedMatch : m
-    );
-
-    const newStore: TournamentStore = {
-      ...store,
-      divisions: {
-        ...store.divisions,
-        [currentDivisionId]: {
-          ...division,
-          matches: updatedMatches,
-        },
-      },
-    };
-
-    persistAndSync(newStore);
-  };
-
-  const handleSaveSchedule = (updatedMatches: Match[]) => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    const division = store.divisions[currentDivisionId];
-    const newStore: TournamentStore = {
-      ...store,
-      divisions: {
-        ...store.divisions,
-        [currentDivisionId]: {
-          ...division,
-          matches: updatedMatches,
-        },
-      },
-    };
-
-    persistAndSync(newStore);
-  };
-
-  const handleNavigateMatch = (direction: 'prev' | 'next') => {
-    if (!editingDetailsMatch) return;
-    const matches = currentData.matches;
-    const currentIndex = matches.findIndex((m) => m.id === editingDetailsMatch.id);
-    if (currentIndex === -1) return;
-    const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    if (nextIndex >= 0 && nextIndex < matches.length) {
-      setEditingDetailsMatch(matches[nextIndex]);
-    }
-  };
-
-  const handleSaveTeams = (updatedTeams: { [code: string]: string }) => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    const division = store.divisions[currentDivisionId];
-
-    const updatedMatches = division.matches.map((m) => {
-      let home = m.homeTeam;
-      let away = m.awayTeam;
-
-      Object.entries(updatedTeams).forEach(([code, newName]) => {
-        const oldName = division.teams[code];
-        if (home === oldName || (m.pairCode && m.pairCode.startsWith(code))) {
-          home = newName;
-        }
-        if (away === oldName || (m.pairCode && m.pairCode.endsWith(code))) {
-          away = newName;
-        }
-      });
-
-      return {
-        ...m,
-        homeTeam: home,
-        awayTeam: away,
-      };
-    });
-
-    const newStore: TournamentStore = {
-      ...store,
-      divisions: {
-        ...store.divisions,
-        [currentDivisionId]: {
-          ...division,
-          teams: updatedTeams,
-          matches: updatedMatches,
-        },
-      },
-    };
-
-    persistAndSync(newStore);
-  };
-
-  const handleUpdateRankings = (newRankings: DivisionRankings) => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    const newStore: TournamentStore = {
-      ...store,
-      divisions: {
-        ...store.divisions,
-        [currentDivisionId]: {
-          ...store.divisions[currentDivisionId],
-          rankings: newRankings,
-        },
-      },
-    };
-
-    persistAndSync(newStore);
-  };
-
-  const handleApplyCsvData = (divisionId: DivisionId, parsedData: Partial<DivisionData>) => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    const current = store.divisions[divisionId];
-    const merged: DivisionData = {
-      ...current,
-      division: parsedData.division ? { ...current.division, ...parsedData.division } : current.division,
-      teams: parsedData.teams ? { ...current.teams, ...parsedData.teams } : current.teams,
-      matches: parsedData.matches && parsedData.matches.length > 0 ? parsedData.matches : current.matches,
-      rankings: parsedData.rankings && (parsedData.rankings.champion || parsedData.rankings.runnerUp)
-        ? parsedData.rankings
-        : current.rankings,
-    };
-
-    const newStore: TournamentStore = {
-      ...store,
-      divisions: {
-        ...store.divisions,
-        [divisionId]: merged,
-      },
-    };
-
-    persistAndSync(newStore);
-    setCurrentDivisionId(divisionId);
-  };
-
-  const handleResetData = () => {
-    if (!isUserAuthorized) {
-      setIsLoginModalOpen(true);
-      return;
-    }
-
-    persistAndSync(initialTournamentData);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleExportData = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(store, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `giai_bong_da_${currentDivisionId}_${new Date().toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
-  const currentFinishedMatches = currentData.matches.filter((m) => m.status === 'finished').length;
-  const currentLiveMatches = currentData.matches.filter((m) => m.status === 'in_progress' || m.status === 'live').length;
-  const currentTotalMatches = currentData.matches.length;
+  }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col text-slate-800 pb-16 font-sans">
-      <Header
-        isBtcMode={canEdit}
-        onToggleBtcMode={() => {
-          if (!isUserAuthorized) {
-            setIsLoginModalOpen(true);
-          } else {
-            setIsBtcMode((prev) => !prev);
-          }
-        }}
-        onResetData={handleResetData}
-        onOpenTeamManager={() => requireBtcLogin(() => setIsTeamManagerOpen(true))}
-        onOpenCsvImport={() => requireBtcLogin(() => setIsCsvImportOpen(true))}
-        onOpenScheduleManager={() => requireBtcLogin(() => setIsScheduleManagerOpen(true))}
-        currentUser={currentUser}
-        onOpenLoginModal={() => setIsLoginModalOpen(true)}
-      />
+    <div className="min-h-screen bg-slate-100 text-slate-800 pb-12">
+      {/* Header Thể Thao */}
+      <header className="bg-emerald-700 text-white py-6 px-4 shadow-md text-center sticky top-0 z-10">
+        <h1 className="text-xl md:text-2xl font-extrabold tracking-wide uppercase">
+          Giải Bóng Đá Học Đường
+        </h1>
+        <p className="text-emerald-100 text-xs md:text-sm mt-1">
+          Lịch thi đấu & cập nhật kết quả trực tiếp
+        </p>
+      </header>
 
-      <DivisionTabs
-        currentDivisionId={currentDivisionId}
-        divisions={divisionsInfo}
-        onSelectDivision={(id) => {
-          setCurrentDivisionId(id);
-        }}
-        matchesCount={matchesCountSummary}
-      />
+      <main className="max-w-2xl mx-auto px-4 mt-6">
+        {/* Thanh chọn 4 nội dung giải đấu */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none justify-start md:justify-center">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all duration-200 ${
+                activeTab === tab
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 scale-105"
+                  : "bg-white text-slate-600 hover:bg-slate-200 border border-slate-200"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
 
-      <main className="max-w-4xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex-1 space-y-4">
-        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white rounded-2xl sm:rounded-3xl p-5 shadow-lg border border-emerald-500/30">
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-emerald-200 border border-white/10 backdrop-blur-md">
-                <span>{currentData.division.badge}</span>
-                <span>{currentData.division.name}</span>
-                {currentLiveMatches > 0 && (
-                  <span className="flex items-center gap-1 text-red-400 font-extrabold animate-pulse ml-1">
-                    <Flame className="w-3 h-3 fill-red-400" /> LIVE ({currentLiveMatches})
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-xl sm:text-3xl font-black tracking-tight text-white drop-shadow-xs">
-                {currentData.division.name}
-              </h2>
-
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-emerald-100/90 font-medium">
-                <MapPin className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-                <span>{currentData.division.venue}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 bg-slate-950/40 border border-white/15 rounded-2xl p-3 backdrop-blur-lg self-start sm:self-auto shadow-inner">
-              <div className="text-center px-2">
-                <div className="text-[11px] text-emerald-300 font-semibold uppercase tracking-wider">Tiến độ</div>
-                <div className="text-lg sm:text-xl font-black text-amber-400">
-                  {Math.round((currentFinishedMatches / (currentTotalMatches || 1)) * 100)}%
-                </div>
-              </div>
-
-              <div className="w-px h-8 bg-white/20" />
-
-              <div className="text-center px-2">
-                <div className="text-[11px] text-emerald-300 font-semibold uppercase tracking-wider">Đã xong</div>
-                <div className="text-lg sm:text-xl font-black text-white">
-                  {currentFinishedMatches}/{currentTotalMatches}
-                </div>
-              </div>
-            </div>
+        {/* Thông báo Đang tải dữ liệu */}
+        {loading && (
+          <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-200">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-600 border-t-transparent mb-3"></div>
+            <p className="text-slate-500 text-sm font-medium">Đang tải lịch thi đấu...</p>
           </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs grid grid-cols-4 gap-1 text-xs">
-          <button
-            onClick={() => setActiveTab('matches')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all font-bold ${
-              activeTab === 'matches'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span className="truncate">Lịch & Tỉ Số</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('standings')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all font-bold ${
-              activeTab === 'standings'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <BarChart2 className="w-4 h-4" />
-            <span className="truncate">Bảng Điểm</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('bracket')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all font-bold ${
-              activeTab === 'bracket'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <GitFork className="w-4 h-4" />
-            <span className="truncate">Nhánh Đấu</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('podium')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all font-bold ${
-              activeTab === 'podium'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Trophy className="w-4 h-4" />
-            <span className="truncate">Chung Cuộc</span>
-          </button>
-        </div>
-
-        {activeTab === 'matches' && (
-          <MatchesView
-            matches={currentData.matches}
-            isBtcMode={canEdit}
-            onEditScore={(match) => {
-              requireBtcLogin(() => setEditingScoreMatch(match));
-            }}
-            onEditDetails={(match) => {
-              requireBtcLogin(() => setEditingDetailsMatch(match));
-            }}
-            onOpenScheduleManager={() => {
-              requireBtcLogin(() => setIsScheduleManagerOpen(true));
-            }}
-          />
         )}
 
-        {activeTab === 'standings' && (
-          <StandingsView
-            groups={currentData.groups}
-            teams={currentData.teams}
-            matches={currentData.matches}
-            isBtcMode={canEdit}
-            onEditScore={(match) => {
-              requireBtcLogin(() => setEditingScoreMatch(match));
-            }}
-          />
+        {/* Thông báo nếu xảy ra lỗi */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl p-6 text-center text-sm">
+            {error}
+          </div>
         )}
 
-        {activeTab === 'bracket' && (
-          <BracketView
-            matches={currentData.matches}
-            isBtcMode={canEdit}
-            onEditScore={(match) => {
-              requireBtcLogin(() => setEditingScoreMatch(match));
-            }}
-          />
-        )}
+        {/* Thẻ danh sách các trận đấu */}
+        {!loading && !error && (
+          <div className="space-y-3">
+            {matches.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center text-slate-500 text-sm shadow-sm">
+                Chưa có dữ liệu trận đấu cho nội dung này.
+              </div>
+            ) : (
+              matches.map((match, idx) => {
+                const teamA = getValue(match, ["Đội A", "Team A", "Đội 1"]) || "Đội A";
+                const teamB = getValue(match, ["Đội B", "Team B", "Đội 2"]) || "Đội B";
+                const scoreA = getValue(match, ["Tỷ số A", "Ty so A", "Score A"]) ?? "-";
+                const scoreB = getValue(match, ["Tỷ số B", "Ty so B", "Score B"]) ?? "-";
+                const date = getValue(match, ["Ngày thi đấu", "Ngày", "Thời gian"]) || "";
+                const status = getValue(match, ["Trạng thái", "Trang thai"]) || "";
 
-        {activeTab === 'podium' && (
-          <PodiumView
-            rankings={currentData.rankings}
-            isBtcMode={canEdit}
-            onUpdateRankings={(rankings) => {
-              requireBtcLogin(() => handleUpdateRankings(rankings));
-            }}
-          />
+                return (
+                  <div
+                    key={idx}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center justify-between hover:border-emerald-500 transition-colors"
+                  >
+                    {/* Đội A */}
+                    <div className="flex-1 text-right font-bold text-slate-800 text-sm md:text-base pr-3">
+                      {teamA}
+                    </div>
+
+                    {/* Khối tỷ số trung tâm */}
+                    <div className="flex flex-col items-center justify-center min-w-[100px] px-2">
+                      <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl font-black text-base md:text-lg tracking-wider flex items-center gap-1 shadow-inner">
+                        <span>{scoreA}</span>
+                        <span className="text-slate-400 text-xs">:</span>
+                        <span>{scoreB}</span>
+                      </div>
+                      {date && <span className="text-[11px] text-slate-400 mt-1 font-medium">{date}</span>}
+                      {status && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 uppercase">
+                          {status}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Đội B */}
+                    <div className="flex-1 text-left font-bold text-slate-800 text-sm md:text-base pl-3">
+                      {teamB}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         )}
       </main>
-
-      <BtcToolbar
-        isVisible={canEdit}
-        onClose={() => setIsBtcMode(false)}
-        onExport={handleExportData}
-        onOpenCsvImport={() => requireBtcLogin(() => setIsCsvImportOpen(true))}
-        onOpenScheduleManager={() => requireBtcLogin(() => setIsScheduleManagerOpen(true))}
-      />
-
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        currentUser={currentUser}
-        onLoginSuccess={(user) => {
-          setCurrentUser(user);
-          if (isAuthorizedEmail(user.email)) {
-            setIsBtcMode(true);
-          } else {
-            setIsBtcMode(false);
-          }
-        }}
-        onLogoutSuccess={() => {
-          setCurrentUser(null);
-          setIsBtcMode(false);
-        }}
-      />
-
-      <ScoreEntryModal
-        match={editingScoreMatch}
-        isOpen={!!editingScoreMatch}
-        onClose={() => setEditingScoreMatch(null)}
-        onSave={handleSaveScore}
-      />
-
-      <EditMatchModal
-        match={editingDetailsMatch}
-        isOpen={!!editingDetailsMatch}
-        onClose={() => setEditingDetailsMatch(null)}
-        onSave={handleSaveMatchDetails}
-        onNavigateMatch={handleNavigateMatch}
-      />
-
-      <ScheduleManagerModal
-        divisionName={currentData.division.shortName}
-        matches={currentData.matches}
-        isOpen={isScheduleManagerOpen}
-        onClose={() => setIsScheduleManagerOpen(false)}
-        onSaveSchedule={handleSaveSchedule}
-      />
-
-      <TeamManagerModal
-        divisionName={currentData.division.shortName}
-        teams={currentData.teams}
-        isOpen={isTeamManagerOpen}
-        onClose={() => setIsTeamManagerOpen(false)}
-        onSaveTeams={handleSaveTeams}
-      />
-
-      <CsvImportModal
-        currentDivisionId={currentDivisionId}
-        isOpen={isCsvImportOpen}
-        onClose={() => setIsCsvImportOpen(false)}
-        onApplyCsvData={handleApplyCsvData}
-      />
     </div>
   );
 }
