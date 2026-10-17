@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// 1. CẤU HÌNH FIREBASE REALTIME DATABASE (ĐÃ TÍCH HỢP MÃ CỦA ANH/CHỊ)
+// 1. CẤU HÌNH FIREBASE REALTIME DATABASE (HOÀN CHỈNH)
 // ---------------------------------------------------------------------------
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
@@ -205,7 +205,7 @@ export default function App() {
   const [tempMatchStatus, setTempMatchStatus] = useState<Match['status']>('scheduled');
   const [tempTime, setTempTime] = useState<string>('');
 
-  // 🔄 KẾT NỐI REALTIME DATABASE: Đồng bộ liên tục dữ liệu từ Server về Máy người dùng
+  // 🔄 KẾT NỐI REALTIME DATABASE: Lắng nghe biến động dữ liệu liên tục từ Server
   useEffect(() => {
     const tournamentRef = ref(db, 'tournamentData');
     const unsubscribe = onValue(tournamentRef, (snapshot) => {
@@ -213,7 +213,6 @@ export default function App() {
       if (data) {
         setTournamentData(data);
       } else {
-        // Nếu database trống, tự động nạp dữ liệu mặc định ban đầu
         set(ref(db, 'tournamentData'), INITIAL_DATA);
       }
     });
@@ -269,7 +268,6 @@ export default function App() {
       [currentDiv]: { ...divData, matches: updatedMatches }
     };
 
-    // Đẩy dữ liệu mới lên Firebase Server
     set(ref(db, 'tournamentData'), newTournamentData);
     setEditingScoreMatch(null);
   };
@@ -289,7 +287,6 @@ export default function App() {
       [currentDiv]: { ...divData, matches: updatedMatches }
     };
 
-    // Đẩy dữ liệu mới lên Firebase Server
     set(ref(db, 'tournamentData'), newTournamentData);
     setEditingTimeMatch(null);
   };
