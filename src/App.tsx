@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 // 🔑 Mật khẩu Admin (Bạn có thể tự đổi ở đây)
-const ADMIN_PASSWORD = "123";
+const ADMIN_PASSWORD = "THCSTHPTTTS";
 
 export interface Match {
   id: string;
