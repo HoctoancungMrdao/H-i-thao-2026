@@ -33,7 +33,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ---------------------------------------------------------------------------
-// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU (ĐÃ TÍCH HỢP LỊCH TRỰC TIẾP)
+// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU (ĐÃ ĐIỀU CHỈNH ĐÚNG 4 TÀI KHOẢN)
 // ---------------------------------------------------------------------------
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
@@ -41,15 +41,20 @@ const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string
     name: "Ban Tổ Chức (Toàn quyền)", 
     allowedDivs: ["nam", "nu", "khoi89", "khoi67"] 
   },
+  "THPT": { 
+    pass: "Thpt@235", 
+    name: "Quản Lý BĐ THPT (Nam & Nữ)", 
+    allowedDivs: ["nam", "nu"] 
+  },
   "Phanhieu1": { 
     pass: "Thoai2026", 
-    name: "Quản Lý BĐ Khối 6-7", 
-    allowedDivs: ["khoi67"] 
+    name: "Quản Lý BĐ Khối 8-9", 
+    allowedDivs: ["khoi89"] 
   },
   "Phanhieu2": { 
     pass: "Lam2026", 
-    name: "Quản Lý BĐ Khối 8-9", 
-    allowedDivs: ["khoi89"] 
+    name: "Quản Lý BĐ Khối 6-7", 
+    allowedDivs: ["khoi67"] 
   }
 };
 
