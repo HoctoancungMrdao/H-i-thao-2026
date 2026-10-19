@@ -9,7 +9,12 @@ import {
   LogOut,
   Eye,
   EyeOff,
-  Clock
+  Clock,
+  Bell,
+  Image as ImageIcon,
+  Edit3,
+  Trash2,
+  Megaphone
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -33,7 +38,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ---------------------------------------------------------------------------
-// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU (ĐÃ ĐIỀU CHỈNH ĐÚNG 4 TÀI KHOẢN)
+// 2. CẤU HÌNH TÀI KHOẢN & DỮ LIỆU BAN ĐẦU
 // ---------------------------------------------------------------------------
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
@@ -57,6 +62,13 @@ const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string
     allowedDivs: ["khoi67"] 
   }
 };
+
+export interface Announcement {
+  content: string;
+  imageUrl?: string;
+  updatedAt?: string;
+  author?: string;
+}
 
 export interface Match {
   id: string;
@@ -202,6 +214,12 @@ export default function App() {
 
   const [tournamentData, setTournamentData] = useState(INITIAL_DATA);
 
+  // Trạng thái cho Thông Báo / Bài Đăng BTC
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [announcementModalOpen, setAnnouncementModalOpen] = useState<boolean>(false);
+  const [inputAnnounceContent, setInputAnnounceContent] = useState<string>('');
+  const [inputAnnounceImage, setInputAnnounceImage] = useState<string>('');
+
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingTimeMatch, setEditingTimeMatch] = useState<Match | null>(null);
 
@@ -212,8 +230,9 @@ export default function App() {
 
   // 🔄 KẾT NỐI REALTIME DATABASE
   useEffect(() => {
+    // 1. Lấy dữ liệu giải đấu
     const tournamentRef = ref(db, 'tournamentData');
-    const unsubscribe = onValue(tournamentRef, (snapshot) => {
+    const unsubscribeTournament = onValue(tournamentRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setTournamentData(data);
@@ -222,15 +241,30 @@ export default function App() {
       }
     });
 
-    return () => unsubscribe();
+    // 2. Lấy dữ liệu thông báo BTC
+    const announceRef = ref(db, 'announcement');
+    const unsubscribeAnnounce = onValue(announceRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setAnnouncement(data);
+      } else {
+        setAnnouncement(null);
+      }
+    });
+
+    return () => {
+      unsubscribeTournament();
+      unsubscribeAnnounce();
+    };
   }, []);
 
-  // Kiểm tra quyền sửa
+  // Kiểm tra quyền sửa môn học hiện tại
   const canEditCurrentDiv = useMemo(() => {
     if (!currentUser || !ACCOUNTS[currentUser]) return false;
     return ACCOUNTS[currentUser].allowedDivs.includes(currentDiv);
   }, [currentUser, currentDiv]);
 
+  // Đăng nhập
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const userKey = inputUsername.trim();
@@ -244,6 +278,44 @@ export default function App() {
       setLoginError('');
     } else {
       setLoginError('Tên tài khoản hoặc Mật khẩu không chính xác!');
+    }
+  };
+
+  // 📢 ĐĂNG HOẶC CẬP NHẬT THÔNG BÁO BTC LÊN FIREBASE REALTIME
+  const handleSaveAnnouncement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const timeString = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString('vi-VN');
+
+    const newAnnounce: Announcement = {
+      content: inputAnnounceContent,
+      imageUrl: inputAnnounceImage || '',
+      updatedAt: timeString,
+      author: ACCOUNTS[currentUser]?.name || currentUser
+    };
+
+    set(ref(db, 'announcement'), newAnnounce);
+    setAnnouncementModalOpen(false);
+  };
+
+  // 🗑️ XÓA THÔNG BÁO BTC
+  const handleDeleteAnnouncement = () => {
+    if (window.confirm('Anh/Chị có chắc chắn muốn xóa thông báo này không?')) {
+      set(ref(db, 'announcement'), null);
+      setAnnouncementModalOpen(false);
+    }
+  };
+
+  // 🖼️ XỬ LÝ TẢI ẢNH TỪ MÁY/ĐIỆN THOẠI
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setInputAnnounceImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -306,6 +378,12 @@ export default function App() {
   const openTimeModal = (match: Match) => {
     setEditingTimeMatch(match);
     setTempTime(match.time || '');
+  };
+
+  const openAnnounceModal = () => {
+    setInputAnnounceContent(announcement?.content || '');
+    setInputAnnounceImage(announcement?.imageUrl || '');
+    setAnnouncementModalOpen(true);
   };
 
   // Tính Bảng xếp hạng tự động
@@ -444,6 +522,56 @@ export default function App() {
       {/* MAIN CONTENT */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
         
+        {/* 📢 KHỐI DÒNG THÔNG BÁO / TẢI BÀI ĐĂNG CỦA BAN TỔ CHỨC (ĐẦU TRANG) */}
+        <section className="bg-gradient-to-r from-amber-500/10 via-amber-100/50 to-amber-500/10 border-2 border-amber-300/80 rounded-2xl p-4 shadow-xs relative overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-amber-200 pb-2 mb-2.5">
+            <div className="flex items-center gap-2 text-amber-900 font-black text-xs md:text-sm uppercase tracking-wide">
+              <Megaphone className="w-4 h-4 text-amber-600 animate-bounce" />
+              <span>THÔNG BÁO TỪ BAN TỔ CHỨC</span>
+            </div>
+
+            {/* NÚT TẠO / SỬA BÀI VIẾT CHO TẤT CẢ QUẢN LÝ ĐÃ ĐĂNG NHẬP */}
+            {currentUser && (
+              <button
+                onClick={openAnnounceModal}
+                className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-lg transition-colors shadow-xs"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>{announcement ? 'Sửa thông báo' : '+ Đăng thông báo'}</span>
+              </button>
+            )}
+          </div>
+
+          {announcement && (announcement.content || announcement.imageUrl) ? (
+            <div className="space-y-3">
+              {announcement.content && (
+                <p className="text-xs md:text-sm text-slate-800 font-medium whitespace-pre-wrap leading-relaxed">
+                  {announcement.content}
+                </p>
+              )}
+
+              {announcement.imageUrl && (
+                <div className="rounded-xl overflow-hidden border border-amber-200 max-h-96 flex items-center justify-center bg-slate-900/5">
+                  <img 
+                    src={announcement.imageUrl} 
+                    alt="Hình ảnh thông báo BTC" 
+                    className="w-full object-contain max-h-96 rounded-xl"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[10px] text-amber-800/80 italic font-semibold pt-1 border-t border-amber-200/50">
+                <span>Cập nhật bởi: {announcement.author || 'BTC'}</span>
+                <span>{announcement.updatedAt}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-2 text-xs text-amber-800/70 italic font-semibold">
+              Chưa có thông báo mới nào từ Ban Tổ Chức.
+            </div>
+          )}
+        </section>
+
         {/* TABS CHUYỂN ĐỔI GIAO DIỆN */}
         <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
           <button
@@ -712,6 +840,89 @@ export default function App() {
               >
                 Đăng nhập
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 📢 MODAL ĐĂNG / SỬA THÔNG BÁO BTC */}
+      {announcementModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl relative">
+            <button 
+              onClick={() => setAnnouncementModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h2 className="text-base font-black text-amber-800 mb-3 flex items-center gap-2">
+              <Megaphone className="w-5 h-5" /> Đăng / Cập Nhật Thông Báo BTC
+            </h2>
+
+            <form onSubmit={handleSaveAnnouncement} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Nội dung thông báo / bài viết</label>
+                <textarea 
+                  rows={4}
+                  value={inputAnnounceContent}
+                  onChange={(e) => setInputAnnounceContent(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-medium focus:border-amber-600 focus:outline-hidden"
+                  placeholder="Nhập nội dung thông báo, lịch đổi, thông tin lưu ý..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Đính kèm hình ảnh (tùy chọn)</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200"
+                />
+                
+                {inputAnnounceImage && (
+                  <div className="mt-2 relative rounded-xl overflow-hidden border border-slate-200 max-h-48 bg-slate-50 flex items-center justify-center">
+                    <img src={inputAnnounceImage} alt="Xem trước" className="max-h-48 object-contain" />
+                    <button 
+                      type="button" 
+                      onClick={() => setInputAnnounceImage('')}
+                      className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full shadow-md hover:bg-red-700"
+                      title="Xóa ảnh"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                {announcement && (
+                  <button 
+                    type="button" 
+                    onClick={handleDeleteAnnouncement}
+                    className="py-2 px-3 bg-red-100 text-red-700 font-extrabold text-xs rounded-xl hover:bg-red-200 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Gỡ tin</span>
+                  </button>
+                )}
+
+                <button 
+                  type="button" 
+                  onClick={() => setAnnouncementModalOpen(false)}
+                  className="flex-1 py-2 bg-slate-100 text-slate-600 font-extrabold text-xs rounded-xl hover:bg-slate-200"
+                >
+                  Hủy
+                </button>
+
+                <button 
+                  type="submit" 
+                  className="flex-1 py-2 bg-amber-600 text-white font-extrabold text-xs rounded-xl hover:bg-amber-700 shadow-sm"
+                >
+                  Đăng Thông Báo
+                </button>
+              </div>
             </form>
           </div>
         </div>
