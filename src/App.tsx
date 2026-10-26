@@ -10,11 +10,10 @@ import {
   Eye,
   EyeOff,
   Clock,
-  Bell,
-  Image as ImageIcon,
+  Megaphone,
   Edit3,
   Trash2,
-  Megaphone
+  Users
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -214,7 +213,7 @@ export default function App() {
 
   const [tournamentData, setTournamentData] = useState(INITIAL_DATA);
 
-  // Trạng thái cho Thông Báo / Bài Đăng BTC
+  // Trạng thái cho Thông Báo BTC
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState<boolean>(false);
   const [inputAnnounceContent, setInputAnnounceContent] = useState<string>('');
@@ -223,6 +222,11 @@ export default function App() {
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [editingTimeMatch, setEditingTimeMatch] = useState<Match | null>(null);
 
+  // Trạng thái: Đổi tên đội bóng trực tiếp
+  const [editingTeamsMatch, setEditingTeamsMatch] = useState<Match | null>(null);
+  const [tempHomeTeam, setTempHomeTeam] = useState<string>('');
+  const [tempAwayTeam, setTempAwayTeam] = useState<string>('');
+
   const [tempHomeScore, setTempHomeScore] = useState<string>('');
   const [tempAwayScore, setTempAwayScore] = useState<string>('');
   const [tempMatchStatus, setTempMatchStatus] = useState<Match['status']>('scheduled');
@@ -230,7 +234,6 @@ export default function App() {
 
   // 🔄 KẾT NỐI REALTIME DATABASE
   useEffect(() => {
-    // 1. Lấy dữ liệu giải đấu
     const tournamentRef = ref(db, 'tournamentData');
     const unsubscribeTournament = onValue(tournamentRef, (snapshot) => {
       const data = snapshot.val();
@@ -241,7 +244,6 @@ export default function App() {
       }
     });
 
-    // 2. Lấy dữ liệu thông báo BTC
     const announceRef = ref(db, 'announcement');
     const unsubscribeAnnounce = onValue(announceRef, (snapshot) => {
       const data = snapshot.val();
@@ -258,13 +260,11 @@ export default function App() {
     };
   }, []);
 
-  // Kiểm tra quyền sửa môn học hiện tại
   const canEditCurrentDiv = useMemo(() => {
     if (!currentUser || !ACCOUNTS[currentUser]) return false;
     return ACCOUNTS[currentUser].allowedDivs.includes(currentDiv);
   }, [currentUser, currentDiv]);
 
-  // Đăng nhập
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const userKey = inputUsername.trim();
@@ -281,7 +281,6 @@ export default function App() {
     }
   };
 
-  // 📢 ĐĂNG HOẶC CẬP NHẬT THÔNG BÁO BTC LÊN FIREBASE REALTIME
   const handleSaveAnnouncement = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -299,7 +298,6 @@ export default function App() {
     setAnnouncementModalOpen(false);
   };
 
-  // 🗑️ XÓA THÔNG BÁO BTC
   const handleDeleteAnnouncement = () => {
     if (window.confirm('Anh/Chị có chắc chắn muốn xóa thông báo này không?')) {
       set(ref(db, 'announcement'), null);
@@ -307,7 +305,6 @@ export default function App() {
     }
   };
 
-  // 🖼️ XỬ LÝ TẢI ẢNH TỪ MÁY/ĐIỆN THOẠI
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -319,7 +316,6 @@ export default function App() {
     }
   };
 
-  // 💾 LƯU TỶ SỐ TRỰC TIẾP LÊN FIREBASE REALTIME
   const handleSaveScore = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingScoreMatch) return;
@@ -349,7 +345,6 @@ export default function App() {
     setEditingScoreMatch(null);
   };
 
-  // 💾 LƯU GIỜ THI ĐẤU TRỰC TIẾP LÊN FIREBASE REALTIME
   const handleSaveTime = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTimeMatch) return;
@@ -368,6 +363,25 @@ export default function App() {
     setEditingTimeMatch(null);
   };
 
+  // 💾 LƯU TÊN ĐỘI BÓNG MỚI LÊN FIREBASE REALTIME
+  const handleSaveTeams = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeamsMatch) return;
+
+    const divData = tournamentData[currentDiv];
+    const updatedMatches = divData.matches.map((m) => 
+      m.id === editingTeamsMatch.id ? { ...m, homeTeam: tempHomeTeam, awayTeam: tempAwayTeam } : m
+    );
+
+    const newTournamentData = {
+      ...tournamentData,
+      [currentDiv]: { ...divData, matches: updatedMatches }
+    };
+
+    set(ref(db, 'tournamentData'), newTournamentData);
+    setEditingTeamsMatch(null);
+  };
+
   const openScoreModal = (match: Match) => {
     setEditingScoreMatch(match);
     setTempHomeScore(match.homeScore !== undefined ? String(match.homeScore) : '');
@@ -380,13 +394,18 @@ export default function App() {
     setTempTime(match.time || '');
   };
 
+  const openTeamsModal = (match: Match) => {
+    setEditingTeamsMatch(match);
+    setTempHomeTeam(match.homeTeam);
+    setTempAwayTeam(match.awayTeam);
+  };
+
   const openAnnounceModal = () => {
     setInputAnnounceContent(announcement?.content || '');
     setInputAnnounceImage(announcement?.imageUrl || '');
     setAnnouncementModalOpen(true);
   };
 
-  // Tính Bảng xếp hạng tự động
   const groupStandings = useMemo(() => {
     const matches: Match[] = tournamentData[currentDiv]?.matches || [];
     const groups: Record<string, Record<string, TeamStanding>> = {};
@@ -522,7 +541,7 @@ export default function App() {
       {/* MAIN CONTENT */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
         
-        {/* 📢 KHỐI DÒNG THÔNG BÁO / TẢI BÀI ĐĂNG CỦA BAN TỔ CHỨC (ĐẦU TRANG) */}
+        {/* KHỐI DÒNG THÔNG BÁO BTC */}
         <section className="bg-gradient-to-r from-amber-500/10 via-amber-100/50 to-amber-500/10 border-2 border-amber-300/80 rounded-2xl p-4 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between gap-2 border-b border-amber-200 pb-2 mb-2.5">
             <div className="flex items-center gap-2 text-amber-900 font-black text-xs md:text-sm uppercase tracking-wide">
@@ -530,7 +549,6 @@ export default function App() {
               <span>THÔNG BÁO TỪ BAN TỔ CHỨC</span>
             </div>
 
-            {/* NÚT TẠO / SỬA BÀI VIẾT CHO TẤT CẢ QUẢN LÝ ĐÃ ĐĂNG NHẬP */}
             {currentUser && (
               <button
                 onClick={openAnnounceModal}
@@ -694,7 +712,13 @@ export default function App() {
                 </div>
 
                 {canEditCurrentDiv && (
-                  <div className="pt-2 border-t border-slate-100 flex justify-end">
+                  <div className="pt-2 border-t border-slate-100 flex justify-end gap-2">
+                    <button
+                      onClick={() => openTeamsModal(match)}
+                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <span>Sửa tên đội</span>
+                    </button>
                     <button
                       onClick={() => openScoreModal(match)}
                       className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
@@ -764,7 +788,17 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {currentMatches.filter((m) => m.round.includes('TK') || m.round.includes('BK') || m.round.includes('CK')).map((m) => (
                 <div key={m.id} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
-                  <div className="text-[11px] font-bold text-emerald-700 uppercase">{m.round}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-700 uppercase">{m.round}</span>
+                    {canEditCurrentDiv && (
+                      <button 
+                        onClick={() => openTeamsModal(m)}
+                        className="text-[10px] font-extrabold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded transition-colors"
+                      >
+                        Sửa đội
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between font-extrabold text-sm">
                     <span>{m.homeTeam}</span>
                     <span className="bg-slate-900 text-white px-2.5 py-1 rounded-lg text-xs">
@@ -845,7 +879,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 📢 MODAL ĐĂNG / SỬA THÔNG BÁO BTC */}
+      {/* MODAL ĐĂNG / SỬA THÔNG BÁO BTC */}
       {announcementModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl relative">
@@ -1038,6 +1072,64 @@ export default function App() {
                   className="flex-1 py-2 bg-emerald-600 text-white font-extrabold text-xs rounded-xl hover:bg-emerald-700 shadow-sm"
                 >
                   Lưu Giờ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CẬP NHẬT TÊN ĐỘI BÓNG */}
+      {editingTeamsMatch && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl relative">
+            <button 
+              onClick={() => setEditingTeamsMatch(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-black text-slate-800 mb-1">Đổi Tên Đội Thi Đấu</h2>
+            <p className="text-xs text-slate-500 mb-4">{editingTeamsMatch.round}</p>
+
+            <form onSubmit={handleSaveTeams} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Tên Đội 1 (Nhà)</label>
+                <input 
+                  type="text" 
+                  value={tempHomeTeam}
+                  onChange={(e) => setTempHomeTeam(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"
+                  placeholder="Nhập tên đội (VD: 11A1 hoặc Nhất A)..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Tên Đội 2 (Khách)</label>
+                <input 
+                  type="text" 
+                  value={tempAwayTeam}
+                  onChange={(e) => setTempAwayTeam(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"
+                  placeholder="Nhập tên đội (VD: 12A3 hoặc Nhì B)..."
+                  required
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingTeamsMatch(null)}
+                  className="flex-1 py-2 bg-slate-100 text-slate-600 font-extrabold text-xs rounded-xl hover:bg-slate-200"
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-2 bg-amber-600 text-white font-extrabold text-xs rounded-xl hover:bg-amber-700 shadow-sm"
+                >
+                  Lưu Tên Đội
                 </button>
               </div>
             </form>
