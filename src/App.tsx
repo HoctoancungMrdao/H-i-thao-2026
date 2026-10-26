@@ -12,8 +12,7 @@ import {
   Clock,
   Megaphone,
   Edit3,
-  Trash2,
-  Users
+  Trash2
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -363,7 +362,6 @@ export default function App() {
     setEditingTimeMatch(null);
   };
 
-  // 💾 LƯU TÊN ĐỘI BÓNG MỚI LÊN FIREBASE REALTIME
   const handleSaveTeams = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTeamsMatch) return;
@@ -461,12 +459,25 @@ export default function App() {
     return result;
   }, [tournamentData, currentDiv]);
 
-  const currentMatches = tournamentData[currentDiv]?.matches || [];
+  // TỰ ĐỘNG ĐẨY TRẬN KNOCKOUT LÊN ĐẦU KHI BẢNG ĐẤU ĐÃ XONG HOÀN TOÀN
+  const currentMatches = useMemo(() => {
+    const rawMatches: Match[] = tournamentData[currentDiv]?.matches || [];
+    const groupMatches = rawMatches.filter((m) => m.group);
+
+    const isAllGroupFinished = groupMatches.length > 0 && groupMatches.every((m) => m.status === 'finished');
+
+    if (isAllGroupFinished) {
+      const knockoutMatches = rawMatches.filter((m) => !m.group);
+      return [...knockoutMatches, ...groupMatches];
+    }
+
+    return rawMatches;
+  }, [tournamentData, currentDiv]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16 font-sans">
-      {/* HEADER */}
-      <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-20">
+      {/* 1. HEADER CHÍNH */}
+      <header className="bg-emerald-800 text-white shadow-md sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
           
           <div className="flex items-center gap-2.5">
@@ -516,19 +527,20 @@ export default function App() {
         </div>
       </header>
 
-      {/* CHỌN NỘI DUNG */}
-      <nav className="bg-white border-b border-slate-200 sticky top-[57px] z-10 shadow-xs">
-        <div className="max-w-4xl mx-auto px-2 flex gap-1 overflow-x-auto py-2 justify-start sm:justify-center scrollbar-none">
+      {/* 2. KHỐI NAV DÍNH ĐỈNH (STICKY NAVBAR: CHỌN MÔN & TABS CHẾ ĐỘ) */}
+      <div className="sticky top-[57px] z-20 bg-slate-100/95 backdrop-blur-md border-b border-slate-200 shadow-sm space-y-1.5 py-2">
+        {/* THANH CHỌN NỘI DUNG (BĐ NAM, BĐ NỮ,...) */}
+        <div className="max-w-4xl mx-auto px-2 flex gap-1 overflow-x-auto justify-start sm:justify-center scrollbar-none">
           {Object.keys(INITIAL_DATA).map((key) => {
             const active = currentDiv === key;
             return (
               <button
                 key={key}
                 onClick={() => setCurrentDiv(key)}
-                className={`px-4 py-2 rounded-full text-xs font-extrabold whitespace-nowrap transition-all ${
+                className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all ${
                   active
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 scale-105'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
                 }`}
               >
                 {INITIAL_DATA[key].name}
@@ -536,7 +548,48 @@ export default function App() {
             );
           })}
         </div>
-      </nav>
+
+        {/* TABS CHUYỂN ĐỔI GIAO DIỆN (LỊCH & TỈ SỐ, BẢNG ĐIỂM, NHÁNH ĐẤU) */}
+        <div className="max-w-4xl mx-auto px-3 sm:px-4">
+          <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
+            <button
+              onClick={() => setActiveTab('matches')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-extrabold transition-all ${
+                activeTab === 'matches'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Lịch & Tỉ Số</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('standings')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-extrabold transition-all ${
+                activeTab === 'standings'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <BarChart2 className="w-4 h-4" />
+              <span>Bảng Điểm</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('bracket')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-extrabold transition-all ${
+                activeTab === 'bracket'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <GitFork className="w-4 h-4" />
+              <span>Nhánh Đấu</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* MAIN CONTENT */}
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4">
@@ -589,45 +642,6 @@ export default function App() {
             </div>
           )}
         </section>
-
-        {/* TABS CHUYỂN ĐỔI GIAO DIỆN */}
-        <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1 text-xs">
-          <button
-            onClick={() => setActiveTab('matches')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-extrabold transition-all ${
-              activeTab === 'matches'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Lịch & Tỉ Số</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('standings')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-extrabold transition-all ${
-              activeTab === 'standings'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <BarChart2 className="w-4 h-4" />
-            <span>Bảng Điểm</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('bracket')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-extrabold transition-all ${
-              activeTab === 'bracket'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <GitFork className="w-4 h-4" />
-            <span>Nhánh Đấu</span>
-          </button>
-        </div>
 
         {/* 1. LỊCH THI ĐẤU & TỈ SỐ */}
         {activeTab === 'matches' && (
