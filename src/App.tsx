@@ -41,7 +41,7 @@ const db = getDatabase(app);
 const ACCOUNTS: Record<string, { pass: string; name: string; allowedDivs: string[] }> = {
   "Admin": { 
     pass: "Khuon@247", 
-    name: "Ban Tổ Chức (Toàn quyền)", 
+    name: "Ban Tổ Chức", 
     allowedDivs: ["nam", "nu", "khoi89", "khoi67"] 
   },
   "THPT": { 
