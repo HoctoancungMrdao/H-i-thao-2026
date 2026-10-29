@@ -459,7 +459,7 @@ export default function App() {
     return result;
   }, [tournamentData, currentDiv]);
 
-  // TỰ ĐỘNG ĐẨY TRẬN KNOCKOUT LÊN ĐẦU KHI BẢNG ĐẤU ĐÃ XONG HOÀN TOÀN
+  // TỰ ĐỘNG ĐẨY TRẬN KNOCKOUT LÊN ĐẦU KHI VÒNG BẢNG ĐÃ KẾT THÚC HOÀN TOÀN
   const currentMatches = useMemo(() => {
     const rawMatches: Match[] = tournamentData[currentDiv]?.matches || [];
     const groupMatches = rawMatches.filter((m) => m.group);
@@ -527,26 +527,28 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. KHỐI NAV DÍNH ĐỈNH (STICKY NAVBAR: CHỌN MÔN & TABS CHẾ ĐỘ) */}
-      <div className="sticky top-[57px] z-20 bg-slate-100/95 backdrop-blur-md border-b border-slate-200 shadow-sm space-y-1.5 py-2">
+      {/* 2. KHỐI NAV DÍNH ĐỈNH CHUẨN TRÊN ĐIỆN THOẠI & MÁY TÍNH */}
+      <div className="sticky top-[52px] md:top-[57px] z-20 w-full bg-slate-100/95 backdrop-blur-md border-b border-slate-200 shadow-sm py-2 space-y-2">
         {/* THANH CHỌN NỘI DUNG (BĐ NAM, BĐ NỮ,...) */}
-        <div className="max-w-4xl mx-auto px-2 flex gap-1 overflow-x-auto justify-start sm:justify-center scrollbar-none">
-          {Object.keys(INITIAL_DATA).map((key) => {
-            const active = currentDiv === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setCurrentDiv(key)}
-                className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all ${
-                  active
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 scale-105'
-                    : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
-                }`}
-              >
-                {INITIAL_DATA[key].name}
-              </button>
-            );
-          })}
+        <div className="max-w-4xl mx-auto px-2 overflow-x-auto scrollbar-none">
+          <div className="flex gap-1 justify-start sm:justify-center min-w-max px-1">
+            {Object.keys(INITIAL_DATA).map((key) => {
+              const active = currentDiv === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setCurrentDiv(key)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all ${
+                    active
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 scale-105'
+                      : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {INITIAL_DATA[key].name}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* TABS CHUYỂN ĐỔI GIAO DIỆN (LỊCH & TỈ SỐ, BẢNG ĐIỂM, NHÁNH ĐẤU) */}
